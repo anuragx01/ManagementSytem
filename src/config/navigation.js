@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   NotebookTabs,
   Palmtree,
+  Settings,
   User,
   Users,
   FolderKanban,
@@ -49,6 +50,7 @@ export const navigationByRole = {
     item('Calendar', routePaths.calendar, 'calendar', CalendarDays),
     item('Holidays', routePaths.holidays, 'holidays', NotebookTabs),
     item('Notifications', routePaths.notifications, 'notifications', Bell),
+    item('Settings', routePaths.settings, 'settings', Settings),
     item('My Profile', routePaths.profile, 'profile', User),
   ],
   hr: [
@@ -61,6 +63,7 @@ export const navigationByRole = {
     item('Reports', routePaths.reports, 'reports', FileBarChart),
     item('Organization', routePaths.organization, 'organization', Building2),
     item('Notifications', routePaths.notifications, 'notifications', Bell),
+    item('Settings', routePaths.settings, 'settings', Settings),
   ],
   admin: [
     item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),
@@ -72,6 +75,7 @@ export const navigationByRole = {
     item('Tasks', routePaths.tasks, 'tasks', ClipboardList),
     item('Reports', routePaths.reports, 'reports', FileBarChart),
     item('Payroll', routePaths.payroll, 'payroll', DollarSign),
+    item('Settings', routePaths.settings, 'settings', Settings),
   ],
   manager: [
     item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),

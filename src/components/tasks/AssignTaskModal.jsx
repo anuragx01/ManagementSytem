@@ -65,6 +65,7 @@ export default function AssignTaskModal({ open, onClose, onAssigned, companyId }
       return name.includes(term) || employee.email?.toLowerCase().includes(term) || employee.employeeId?.toLowerCase().includes(term);
     });
   }, [employees, search]);
+  const selectedEmployee = employees.find((employee) => employee.id === selectedIds[0]);
 
   function toggleEmployee(id) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
@@ -172,7 +173,7 @@ export default function AssignTaskModal({ open, onClose, onAssigned, companyId }
             </select>
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-ink-primary">Due Date</span>
+            <span className="text-sm font-semibold text-ink-primary">Deadline</span>
             <input type="date" className="field-control mt-2" value={form.dueDate} onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))} />
           </label>
           <label className="block md:col-span-2">
@@ -187,7 +188,7 @@ export default function AssignTaskModal({ open, onClose, onAssigned, companyId }
         {(mode === 'single' || mode === 'multiple') && (
           <div>
             <label className="block">
-              <span className="text-sm font-semibold text-ink-primary">Search Employees</span>
+              <span className="text-sm font-semibold text-ink-primary">Employee Name / Employee ID</span>
               <input className="field-control mt-2" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name, email, or employee ID" />
             </label>
             <div className="mt-3 max-h-56 space-y-2 overflow-y-auto no-scrollbar rounded-2xl border border-line p-3">
@@ -208,6 +209,14 @@ export default function AssignTaskModal({ open, onClose, onAssigned, companyId }
                 );
               })}
             </div>
+            {selectedEmployee && (
+              <div className="mt-3 grid gap-3 rounded-2xl bg-surface-muted p-4 sm:grid-cols-4">
+                <div><p className="text-xs font-bold uppercase text-ink-secondary">Employee Name</p><p className="mt-1 text-sm font-bold text-ink-primary">{`${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''}`.trim() || selectedEmployee.email}</p></div>
+                <div><p className="text-xs font-bold uppercase text-ink-secondary">Employee ID</p><p className="mt-1 text-sm font-bold text-ink-primary">{selectedEmployee.employeeId || '-'}</p></div>
+                <div><p className="text-xs font-bold uppercase text-ink-secondary">Department</p><p className="mt-1 text-sm font-bold text-ink-primary">{selectedEmployee.departmentName || '-'}</p></div>
+                <div><p className="text-xs font-bold uppercase text-ink-secondary">Designation</p><p className="mt-1 text-sm font-bold text-ink-primary">{selectedEmployee.designationName || selectedEmployee.employmentType || '-'}</p></div>
+              </div>
+            )}
           </div>
         )}
 

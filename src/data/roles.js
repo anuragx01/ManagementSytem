@@ -8,7 +8,7 @@ export const roles = {
     title: 'Organization administration',
     routes: [
       'dashboard', 'employees', 'departments', 'attendance', 'leave',
-      'projects', 'tasks', 'reports', 'payroll', 'profile',
+      'projects', 'tasks', 'reports', 'payroll', 'settings', 'profile',
     ],
   },
   hr: {
@@ -18,7 +18,7 @@ export const roles = {
     title: 'People operations',
     routes: [
       'dashboard', 'employees', 'attendance', 'leave', 'departments',
-      'calendar', 'reports', 'organization', 'notifications', 'profile',
+      'calendar', 'reports', 'organization', 'notifications', 'settings', 'profile',
     ],
   },
   manager: {
@@ -47,7 +47,7 @@ export const roles = {
     title: 'Self-service workspace',
     routes: [
       'dashboard', 'attendance', 'leave', 'tasks', 'dailyReport', 'team', 'calendar',
-      'holidays', 'notifications', 'profile',
+      'holidays', 'notifications', 'settings', 'profile',
     ],
   },
 };

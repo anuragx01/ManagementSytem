@@ -1,19 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Clock, LogIn, LogOut } from 'lucide-react';
 import { Can } from '../components/RoleGate';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
+import SearchFilter from '../components/ui/SearchFilter';
 import { LoadingIndicator } from '../components/ui/Skeleton';
 import useApiData from '../hooks/useApiData';
 import { attendanceApi, pageContent } from '../lib/api';
 import { formatTime, mapAttendance } from '../lib/mappers';
 
-const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 export default function Attendance() {
   const [actionStatus, setActionStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const { data: today, loading: todayLoading, error: todayError, refresh: refreshToday } = useApiData(
     () => attendanceApi.today(),
     null,
@@ -42,37 +42,18 @@ export default function Attendance() {
     return { present, absent, total: monthRecords.length };
   }, [rawRecords]);
 
-  const weeklyAttendance = useMemo(() => {
-    return weekdayLabels.map((day) => ({
-      day,
-      present: rawRecords.filter((record) => {
-        if (!record.date) return false;
-        const date = new Date(record.date);
-        return weekdayLabels[date.getDay()] === day && record.status === 'PRESENT';
-      }).length,
-    }));
-  }, [rawRecords]);
-
-  const calendarDays = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const recordsByDay = new Map(
-      rawRecords
-        .filter((record) => record.date?.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`))
-        .map((record) => [Number(record.date.split('-')[2]), record.status?.toLowerCase()]),
-    );
-
-    return Array.from({ length: daysInMonth }, (_, index) => {
-      const day = index + 1;
-      const status = recordsByDay.get(day);
-      return {
-        day,
-        status: status === 'present' ? 'present' : status === 'late' ? 'late' : 'absent',
-      };
+  const late = rawRecords.filter((record) => record.status === 'LATE').length;
+  const leave = rawRecords.filter((record) => ['LEAVE', 'ON_LEAVE'].includes(record.status)).length;
+  const attendancePercentage = monthlySummary.total ? Math.round((monthlySummary.present / monthlySummary.total) * 100) : 0;
+  const statusOptions = useMemo(() => [...new Set(rows.map((row) => row.status).filter(Boolean))].sort(), [rows]);
+  const filteredRows = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    return rows.filter((row) => {
+      const matchesSearch = !term || [row.date, row.checkIn, row.checkOut, row.hours, row.status].some((value) => String(value || '').toLowerCase().includes(term));
+      const matchesStatus = !statusFilter || row.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [rawRecords]);
+  }, [rows, searchQuery, statusFilter]);
 
   async function handleClockIn() {
     setActionStatus('Clocking in...');
@@ -118,6 +99,16 @@ export default function Attendance() {
       {(todayError || error) && <p className="alert-warning" role="alert">{todayError || error}</p>}
       {(todayLoading || loading) && <LoadingIndicator message="Loading attendance from backend..." />}
 
+      <SearchFilter
+        placeholder="Search attendance records"
+        filterLabel="All Status"
+        options={statusOptions}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        filterValue={statusFilter}
+        onFilterChange={setStatusFilter}
+      />
+
       <section className="card-grid sm:grid-cols-2 xl:grid-cols-4">
         <Card className="p-5" interactive={false}>
           <p className="text-sm font-semibold text-ink-secondary">Attendance Status</p>
@@ -134,6 +125,18 @@ export default function Attendance() {
         <Card className="p-5" interactive={false}>
           <p className="text-sm font-semibold text-ink-secondary">Monthly Absent</p>
           <p className="mt-3 text-2xl font-extrabold text-ink-primary">{monthlySummary.absent}</p>
+        </Card>
+        <Card className="p-5" interactive={false}>
+          <p className="text-sm font-semibold text-ink-secondary">Leave</p>
+          <p className="mt-3 text-2xl font-extrabold text-ink-primary">{leave}</p>
+        </Card>
+        <Card className="p-5" interactive={false}>
+          <p className="text-sm font-semibold text-ink-secondary">Late Arrivals</p>
+          <p className="mt-3 text-2xl font-extrabold text-ink-primary">{late}</p>
+        </Card>
+        <Card className="p-5" interactive={false}>
+          <p className="text-sm font-semibold text-ink-secondary">Attendance %</p>
+          <p className="mt-3 text-2xl font-extrabold text-ink-primary">{attendancePercentage}%</p>
         </Card>
       </section>
 
@@ -163,7 +166,7 @@ export default function Attendance() {
         </Card>
       </Can>
 
-      <section className="section-grid xl:grid-cols-[1fr_0.8fr]">
+      <section>
         <Card className="overflow-hidden" interactive={false}>
           <div className="border-b border-line p-5">
             <h2 className="section-title">Attendance Table</h2>
@@ -176,12 +179,12 @@ export default function Attendance() {
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 && (
+                {filteredRows.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-5 py-8 text-center text-ink-secondary">No attendance records yet.</td>
                   </tr>
                 )}
-                {rows.map((row) => (
+                {filteredRows.map((row) => (
                   <tr key={row.date + row.checkIn} className="border-t border-line">
                     <td className="px-5 py-4 font-semibold text-ink-primary">{row.date}</td>
                     <td className="px-5 py-4 text-ink-secondary">{row.checkIn}</td>
@@ -194,36 +197,7 @@ export default function Attendance() {
             </table>
           </div>
         </Card>
-        <Card className="p-5" interactive={false}>
-          <h2 className="section-title">Attendance Calendar</h2>
-          <div className="mt-5 grid grid-cols-7 gap-2">
-            {calendarDays.map((day) => (
-              <div
-                key={day.day}
-                className={`grid aspect-square place-items-center rounded-2xl text-sm font-bold ${
-                  day.status === 'present' ? 'bg-brand-successSoft text-emerald-700' : day.status === 'late' ? 'bg-brand-warningSoft text-amber-700' : 'bg-brand-blueAccent text-brand-secondary'
-                }`}
-              >
-                {day.day}
-              </div>
-            ))}
-          </div>
-        </Card>
       </section>
-      <Card className="p-5" interactive={false}>
-        <h2 className="section-title">Hours Trend</h2>
-        <div className="mt-4 h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyAttendance}>
-              <CartesianGrid stroke="#E2E6ED" vertical={false} />
-              <XAxis dataKey="day" stroke="#667085" tick={{ fontSize: 12 }} />
-              <YAxis stroke="#667085" tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="present" fill="#1B2A4A" radius={[10, 10, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
     </div>
   );
 }

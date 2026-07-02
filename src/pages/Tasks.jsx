@@ -144,6 +144,9 @@ export default function Tasks() {
                 <Badge>{task.priority}</Badge>
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
+                <span className="font-semibold text-ink-secondary">Employee {task.employeeName}</span>
+                {task.employeeId && <span className="font-semibold text-ink-secondary">ID {task.employeeId}</span>}
+                {task.department && <Badge>{task.department}</Badge>}
                 <span className="font-semibold text-ink-secondary">Due {task.dueDate}</span>
                 <Badge>{task.status}</Badge>
               </div>

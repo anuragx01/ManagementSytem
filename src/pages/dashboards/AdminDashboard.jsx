@@ -6,32 +6,20 @@ import {
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
+  Edit3,
   FileBarChart,
   FolderKanban,
   Megaphone,
+  Plus,
   TrendingUp,
+  Trash2,
   UserPlus,
   Users,
 } from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  Cell,
-  CartesianGrid,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import Modal, { ModalActions } from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
 import ProgressBar from '../../components/ui/ProgressBar';
 import { LoadingIndicator } from '../../components/ui/Skeleton';
@@ -50,7 +38,7 @@ import {
 } from '../../lib/api';
 import { mapNotification } from '../../lib/mappers';
 
-const chartColors = ['#1B2A4A', '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const ANNOUNCEMENTS_KEY = 'nexstar-admin-announcements';
 
 function formatNumber(value) {
   if (value === undefined || value === null || Number.isNaN(Number(value))) return '-';
@@ -70,10 +58,6 @@ function titleCase(value = '') {
 
 function taskStatus(task) {
   return task.status || task.raw?.status || 'TODO';
-}
-
-function getTaskAssigneeId(task) {
-  return task.assigneeId || task.assignee?.id || task.employeeId || task.raw?.assigneeId;
 }
 
 function projectStatus(project) {
@@ -175,6 +159,22 @@ function AdminProjectCard({ project, report, members = [] }) {
 
 export default function AdminDashboard() {
   const [leaveStatus, setLeaveStatus] = useState('');
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [localAnnouncements, setLocalAnnouncements] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ANNOUNCEMENTS_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: '',
+    message: '',
+    priority: 'Normal',
+    publishDate: new Date().toISOString().slice(0, 10),
+    expiryDate: '',
+  });
   const { data: company } = useApiData(() => organizationApi.company(), null, []);
   const { data: attendance, loading: attendanceLoading } = useApiData(() => attendanceApi.dashboard(), null, []);
   const { data: employees, loading: employeesLoading } = useApiData(
@@ -257,49 +257,55 @@ export default function AdminDashboard() {
     { title: 'New Joiners This Month', value: formatNumber(newJoiners), icon: UserPlus, accent: 'bg-brand-successSoft text-emerald-700' },
   ];
 
-  const attendancePie = [
-    { name: 'Present', value: attendance?.present ?? 0 },
-    { name: 'Absent', value: attendance?.absent ?? 0 },
-    { name: 'Leave', value: onLeave ?? 0 },
-    { name: 'Late Check-ins', value: attendance?.late ?? 0 },
-  ].filter((item) => item.value > 0);
+  const apiAnnouncements = notifications.filter((note) => /announcement|system/i.test(note.type || note.raw?.type || '')).slice(0, 5);
+  const announcements = [...localAnnouncements, ...apiAnnouncements].slice(0, 8);
 
-  const taskDistribution = [
-    { name: 'Completed', value: taskCounts.completed },
-    { name: 'In Progress', value: taskCounts.inProgress },
-    { name: 'Overdue', value: taskCounts.overdue },
-    { name: 'Pending', value: taskCounts.pending },
-  ];
+  function persistAnnouncements(items) {
+    setLocalAnnouncements(items);
+    localStorage.setItem(ANNOUNCEMENTS_KEY, JSON.stringify(items));
+  }
 
-  const departmentCards = useMemo(() => departments.map((department) => {
-    const departmentEmployees = employees.filter((employee) => employee.departmentId === department.id || employee.departmentName === department.name || employee.department === department.name);
-    const employeeIds = new Set(departmentEmployees.map((employee) => employee.id));
-    const departmentTasks = tasks.filter((task) => employeeIds.has(getTaskAssigneeId(task)));
-    const completed = departmentTasks.filter((task) => ['DONE', 'COMPLETED'].includes(taskStatus(task))).length;
-    const productivity = departmentTasks.length > 0 ? Math.round((completed / departmentTasks.length) * 100) : null;
-    const projectCount = portfolio.filter(({ project }) => project.departmentId === department.id || project.departmentName === department.name).length;
-    return {
-      id: department.id,
-      name: department.name,
-      employeeCount: departmentEmployees.length,
-      activeProjects: projectCount || null,
-      head: department.headName || department.departmentHeadName || null,
-      productivity,
+  function openAnnouncementForm(item = null) {
+    setEditingAnnouncement(item?.local ? item : null);
+    setAnnouncementForm(item?.local ? {
+      title: item.title,
+      message: item.message,
+      priority: item.priority,
+      publishDate: item.publishDate,
+      expiryDate: item.expiryDate || '',
+    } : {
+      title: '',
+      message: '',
+      priority: 'Normal',
+      publishDate: new Date().toISOString().slice(0, 10),
+      expiryDate: '',
+    });
+    setAnnouncementOpen(true);
+  }
+
+  function saveAnnouncement() {
+    if (!announcementForm.title.trim() || !announcementForm.message.trim()) return;
+    const nextItem = {
+      id: editingAnnouncement?.id || `announcement-${Date.now()}`,
+      local: true,
+      title: announcementForm.title.trim(),
+      message: announcementForm.message.trim(),
+      priority: announcementForm.priority,
+      publishDate: announcementForm.publishDate,
+      expiryDate: announcementForm.expiryDate,
+      time: new Date(announcementForm.publishDate).toLocaleDateString(),
     };
-  }), [departments, employees, tasks, portfolio]);
+    const next = editingAnnouncement
+      ? localAnnouncements.map((item) => (item.id === editingAnnouncement.id ? nextItem : item))
+      : [nextItem, ...localAnnouncements];
+    persistAnnouncements(next);
+    setAnnouncementOpen(false);
+    setEditingAnnouncement(null);
+  }
 
-  const companyActivities = notifications.filter((note) => !/announcement/i.test(note.type || note.raw?.type || '')).slice(0, 8);
-  const announcements = notifications.filter((note) => /announcement|system/i.test(note.type || note.raw?.type || '')).slice(0, 5);
-  const attentionItems = [
-    attendance?.absent ? { title: "Employees who haven't checked in", detail: `${attendance.absent} absent today`, priority: 'Critical' } : null,
-    pendingLeaves.length ? { title: 'Pending leave approvals', detail: `${pendingLeaves.length} request(s) awaiting HR decision`, priority: 'Normal' } : null,
-    taskCounts.overdue ? { title: 'Overdue company tasks', detail: `${taskCounts.overdue} task(s) past due date`, priority: 'Critical' } : null,
-    employees.filter((employee) => employee.status && employee.status !== 'ACTIVE').length ? {
-      title: 'Employee status review',
-      detail: `${employees.filter((employee) => employee.status && employee.status !== 'ACTIVE').length} profile(s) not active`,
-      priority: 'Info',
-    } : null,
-  ].filter(Boolean);
+  function deleteAnnouncement(id) {
+    persistAnnouncements(localAnnouncements.filter((item) => item.id !== id));
+  }
 
   async function decideLeave(leave, decision) {
     setLeaveStatus(`${titleCase(decision)} leave request...`);
@@ -328,57 +334,6 @@ export default function AdminDashboard() {
         {kpis.map((kpi) => <KpiCard key={kpi.title} {...kpi} />)}
       </section>
 
-      <section className="section-grid xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="p-5" interactive={false}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="section-title">Workforce Overview</h2>
-              <p className="mt-1 text-sm text-ink-secondary">Company attendance from GET /attendance/dashboard.</p>
-            </div>
-            <Badge>{attendance?.presentPercentage !== undefined ? `${attendance.presentPercentage.toFixed(1)}% Present` : 'Live'}</Badge>
-          </div>
-          <div className="mt-5 h-72">
-            {attendancePie.length === 0 ? (
-              <EmptyState message="No attendance summary available for today." />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={attendancePie} dataKey="value" nameKey="name" innerRadius={70} outerRadius={105} paddingAngle={4}>
-                    {attendancePie.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-4">
-            {attendancePie.map((item, index) => (
-              <div key={item.name} className="rounded-2xl bg-surface-muted p-3">
-                <span className="block h-2 w-8 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
-                <p className="mt-2 text-xs font-bold uppercase text-ink-secondary">{item.name}</p>
-                <p className="text-lg font-extrabold text-ink-primary">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-5" interactive={false}>
-          <h2 className="section-title">Task Distribution</h2>
-          <p className="mt-1 text-sm text-ink-secondary">Company-wide task analytics from GET /tasks/search.</p>
-          <div className="mt-5 h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={taskDistribution}>
-                <CartesianGrid stroke="#E2E6ED" vertical={false} />
-                <XAxis dataKey="name" stroke="#667085" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#667085" tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#1B2A4A" radius={[10, 10, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </section>
-
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -398,25 +353,7 @@ export default function AdminDashboard() {
         )}
       </section>
 
-      <section className="section-grid xl:grid-cols-[1fr_1.2fr]">
-        <Card className="p-5" interactive={false}>
-          <h2 className="section-title">Employees Requiring Attention</h2>
-          <div className="mt-4 space-y-3">
-            {attentionItems.length === 0 && <EmptyState message="No employee attention items available from connected APIs." />}
-            {attentionItems.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-line p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-ink-primary">{item.title}</p>
-                    <p className="mt-1 text-sm text-ink-secondary">{item.detail}</p>
-                  </div>
-                  <Badge>{item.priority}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
+      <section>
         <Card className="overflow-hidden" interactive={false}>
           <div className="border-b border-line p-5">
             <h2 className="section-title">Pending Leave Requests</h2>
@@ -453,27 +390,12 @@ export default function AdminDashboard() {
         </Card>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="section-title">Department Overview</h2>
-        <div className="card-grid md:grid-cols-2 xl:grid-cols-4">
-          {departmentCards.length === 0 && <Card className="p-5 md:col-span-2 xl:col-span-4" interactive={false}><EmptyState message="No departments available from the organization API." /></Card>}
-          {departmentCards.map((department) => (
-            <Card key={department.id} className="p-5" interactive={false}>
-              <h3 className="text-lg font-extrabold text-ink-primary">{department.name}</h3>
-              <div className="mt-4 space-y-3 text-sm">
-                <p className="flex justify-between gap-3"><span className="text-ink-secondary">Employees</span><strong>{department.employeeCount}</strong></p>
-                <p className="flex justify-between gap-3"><span className="text-ink-secondary">Active Projects</span><strong>{department.activeProjects ?? '-'}</strong></p>
-                <p className="flex justify-between gap-3"><span className="text-ink-secondary">Department Head</span><strong>{department.head || '-'}</strong></p>
-                <p className="flex justify-between gap-3"><span className="text-ink-secondary">Productivity</span><strong>{department.productivity !== null ? `${department.productivity}%` : '-'}</strong></p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="section-grid xl:grid-cols-2">
+      <section>
         <Card className="p-5" interactive={false}>
-          <h2 className="section-title flex items-center gap-2"><Megaphone className="h-5 w-5 text-brand-primary" /> Company Announcements</h2>
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <h2 className="section-title flex items-center gap-2"><Megaphone className="h-5 w-5 text-brand-primary" /> Company Announcements</h2>
+            <Button onClick={() => openAnnouncementForm()}><Plus className="h-4 w-4" /> Add Announcement</Button>
+          </div>
           <div className="mt-4 space-y-3">
             {announcements.length === 0 && <EmptyState message="No company announcements returned by notifications API." />}
             {announcements.map((item) => (
@@ -482,29 +404,17 @@ export default function AdminDashboard() {
                   <div>
                     <p className="font-bold text-ink-primary">{item.title}</p>
                     <p className="mt-1 text-sm text-ink-secondary">{item.message}</p>
-                    <p className="mt-2 text-xs font-semibold text-ink-secondary">{item.time}</p>
+                    <p className="mt-2 text-xs font-semibold text-ink-secondary">Posted {item.publishDate ? formatDate(item.publishDate) : item.time}</p>
                   </div>
-                  <Badge>{item.raw?.priority || item.type || 'Info'}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-5" interactive={false}>
-          <h2 className="section-title">Recent Company Activity</h2>
-          <div className="mt-5 space-y-4">
-            {companyActivities.length === 0 && <EmptyState message="No recent company activity returned by notifications API." />}
-            {companyActivities.map((activity, index) => (
-              <div key={activity.id} className="relative flex gap-4">
-                <div className="flex flex-col items-center">
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-blueAccent text-brand-secondary"><CheckCircle2 className="h-4 w-4" /></span>
-                  {index < companyActivities.length - 1 && <span className="h-full w-px bg-line" />}
-                </div>
-                <div className="pb-4">
-                  <p className="font-bold text-ink-primary">{activity.title}</p>
-                  <p className="mt-1 text-sm text-ink-secondary">{activity.message || activity.type}</p>
-                  <p className="mt-1 text-xs font-semibold text-ink-secondary">{activity.time}</p>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge>{item.priority || item.raw?.priority || item.type || 'Info'}</Badge>
+                    {item.local && (
+                      <>
+                        <Button variant="secondary" className="min-h-9 px-3 py-1.5" onClick={() => openAnnouncementForm(item)} aria-label={`Edit ${item.title}`}><Edit3 className="h-4 w-4" /></Button>
+                        <Button variant="secondary" className="min-h-9 px-3 py-1.5" onClick={() => deleteAnnouncement(item.id)} aria-label={`Delete ${item.title}`}><Trash2 className="h-4 w-4" /></Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -512,50 +422,40 @@ export default function AdminDashboard() {
         </Card>
       </section>
 
-      <section className="section-grid xl:grid-cols-[1fr_0.8fr]">
-        <Card className="p-5" interactive={false}>
-          <h2 className="section-title">Analytics Trends</h2>
-          <div className="mt-5 grid gap-6 lg:grid-cols-2">
-            <div className="h-64">
-              <p className="mb-3 text-sm font-bold text-ink-secondary">Project Completion Trend</p>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={portfolio.map(({ project, report }) => ({ name: project.name, progress: projectProgress(report, project) }))}>
-                  <CartesianGrid stroke="#E2E6ED" vertical={false} />
-                  <XAxis dataKey="name" hide />
-                  <YAxis stroke="#667085" tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="progress" stroke="#2563EB" strokeWidth={3} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="h-64">
-              <p className="mb-3 text-sm font-bold text-ink-secondary">Leave Trends</p>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={[{ name: 'Approved Leave', value: leaveCalendar.length }, { name: 'Pending Leave', value: pendingLeaves.length }]}>
-                  <CartesianGrid stroke="#E2E6ED" vertical={false} />
-                  <XAxis dataKey="name" stroke="#667085" tick={{ fontSize: 12 }} />
-                  <YAxis stroke="#667085" tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="value" stroke="#10B981" fill="#D1FAE5" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-5" interactive={false}>
-          <h2 className="section-title">Recruitment Overview</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {['Open Positions', 'Candidates Interviewing', 'Offers Sent', 'Joining This Week'].map((label) => (
-              <div key={label} className="rounded-2xl border border-dashed border-line bg-surface-muted p-4">
-                <p className="text-xs font-bold uppercase text-ink-secondary">{label}</p>
-                <p className="mt-2 text-2xl font-extrabold text-ink-primary">-</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-sm leading-6 text-ink-secondary">Recruitment pipeline data is not connected to a backend endpoint yet, so the dashboard leaves this widget empty instead of showing fake hiring numbers.</p>
-        </Card>
-      </section>
+      <Modal
+        open={announcementOpen}
+        onClose={() => setAnnouncementOpen(false)}
+        title={editingAnnouncement ? 'Edit Announcement' : 'Add Announcement'}
+        description="Create company announcements for employees and operations teams."
+        footer={<ModalActions onCancel={() => setAnnouncementOpen(false)} onConfirm={saveAnnouncement} confirmLabel="Save Announcement" />}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block md:col-span-2">
+            <span className="text-sm font-semibold text-ink-primary">Announcement Title</span>
+            <input className="field-control mt-2" value={announcementForm.title} onChange={(event) => setAnnouncementForm((current) => ({ ...current, title: event.target.value }))} />
+          </label>
+          <label className="block md:col-span-2">
+            <span className="text-sm font-semibold text-ink-primary">Description</span>
+            <textarea className="field-control mt-2 min-h-28" value={announcementForm.message} onChange={(event) => setAnnouncementForm((current) => ({ ...current, message: event.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-ink-primary">Priority</span>
+            <select className="select-control mt-2" value={announcementForm.priority} onChange={(event) => setAnnouncementForm((current) => ({ ...current, priority: event.target.value }))}>
+              <option>Normal</option>
+              <option>Important</option>
+              <option>Urgent</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-ink-primary">Publish Date</span>
+            <input type="date" className="field-control mt-2" value={announcementForm.publishDate} onChange={(event) => setAnnouncementForm((current) => ({ ...current, publishDate: event.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-ink-primary">Expiry Date</span>
+            <input type="date" className="field-control mt-2" value={announcementForm.expiryDate} onChange={(event) => setAnnouncementForm((current) => ({ ...current, expiryDate: event.target.value }))} />
+          </label>
+        </div>
+      </Modal>
 
       <Card className="p-5" interactive={false}>
         <h2 className="section-title">Quick Actions</h2>

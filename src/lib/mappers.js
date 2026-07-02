@@ -23,6 +23,11 @@ export function mapTask(task) {
     priority: titleCase(task.priority || 'MEDIUM'),
     status: titleCase((task.status || 'TODO').replaceAll('_', ' ')),
     progress: task.checklistTotal ? Math.round((task.checklistDone / task.checklistTotal) * 100) : progress,
+    assigneeId: task.assigneeId,
+    employeeName: task.assigneeName || task.employeeName || 'Unassigned',
+    employeeId: task.employeeId || task.assigneeEmployeeId || '',
+    department: task.departmentName || task.assigneeDepartmentName || '',
+    designation: task.designationName || task.assigneeDesignationName || '',
     raw: task,
   };
 }

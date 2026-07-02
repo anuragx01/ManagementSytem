@@ -20,8 +20,11 @@ export default function TeamDirectory() {
   const [employeeForm, setEmployeeForm] = useState({
     firstName: '',
     lastName: '',
+    employeeId: '',
     email: '',
     phoneNumber: '',
+    role: 'EMPLOYEE',
+    departmentId: '',
     dateOfJoining: '',
     employmentType: 'FULL_TIME',
     workLocation: 'HYBRID',
@@ -39,10 +42,15 @@ export default function TeamDirectory() {
     employees,
     [],
   );
+  const { data: departments } = useApiData(
+    async () => (company?.id ? organizationApi.departments({ companyId: company.id }) : []),
+    [],
+    [company?.id],
+  );
 
   const departmentOptions = useMemo(
-    () => [...new Set(teamMembers.map((member) => member.department).filter(Boolean))].sort(),
-    [teamMembers],
+    () => (departments.length > 0 ? departments.map((department) => department.name) : [...new Set(teamMembers.map((member) => member.department).filter(Boolean))]).sort(),
+    [departments, teamMembers],
   );
 
   const filteredMembers = useMemo(() => {
@@ -66,7 +74,8 @@ export default function TeamDirectory() {
     event.preventDefault();
     setFormStatus('Creating employee...');
     try {
-      await employeesApi.create(employeeForm);
+      const { role, ...employeePayload } = employeeForm;
+      await employeesApi.create(employeePayload);
       setFormStatus('Employee created successfully.');
       setShowEmployeeForm(false);
       refresh();
@@ -147,11 +156,17 @@ export default function TeamDirectory() {
         <Card className="p-5" interactive={false}>
           <h2 className="section-title">Add Employee</h2>
           <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={submitEmployee}>
+            <label className="block md:col-span-2">
+              <span className="text-sm font-semibold text-ink-primary">Employee Name</span>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <input className="field-control" placeholder="First name" value={employeeForm.firstName} onChange={(event) => setEmployeeForm((current) => ({ ...current, firstName: event.target.value }))} required />
+                <input className="field-control" placeholder="Last name" value={employeeForm.lastName} onChange={(event) => setEmployeeForm((current) => ({ ...current, lastName: event.target.value }))} required />
+              </div>
+            </label>
             {[
-              ['firstName', 'First Name'],
-              ['lastName', 'Last Name'],
+              ['employeeId', 'Employee ID'],
               ['email', 'Email'],
-              ['phoneNumber', 'Phone Number'],
+              ['phoneNumber', 'Phone'],
               ['dateOfJoining', 'Date Of Joining'],
             ].map(([key, label]) => (
               <label key={key} className="block">
@@ -161,10 +176,26 @@ export default function TeamDirectory() {
                   type={key === 'dateOfJoining' ? 'date' : 'text'}
                   value={employeeForm[key]}
                   onChange={(event) => setEmployeeForm((current) => ({ ...current, [key]: event.target.value }))}
-                  required={['firstName', 'lastName', 'email', 'dateOfJoining'].includes(key)}
+                  required={['email', 'dateOfJoining'].includes(key)}
                 />
               </label>
             ))}
+            <label className="block">
+              <span className="text-sm font-semibold text-ink-primary">Role</span>
+              <select className="select-control mt-2" value={employeeForm.role} onChange={(event) => setEmployeeForm((current) => ({ ...current, role: event.target.value }))}>
+                <option>EMPLOYEE</option>
+                <option>HR</option>
+                <option>MANAGER</option>
+                <option>TEAM_LEAD</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-semibold text-ink-primary">Department</span>
+              <select className="select-control mt-2" value={employeeForm.departmentId} onChange={(event) => setEmployeeForm((current) => ({ ...current, departmentId: event.target.value }))} required>
+                <option value="">Select department</option>
+                {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+              </select>
+            </label>
             <label className="block">
               <span className="text-sm font-semibold text-ink-primary">Employment Type</span>
               <select className="select-control mt-2" value={employeeForm.employmentType} onChange={(event) => setEmployeeForm((current) => ({ ...current, employmentType: event.target.value }))}>
@@ -247,8 +278,8 @@ export default function TeamDirectory() {
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase text-ink-secondary">{employee.raw?.employeeId || 'Employee'}</p>
                 <h2 className="section-title truncate">{employee.name}</h2>
-                <p className="mt-1 text-sm text-ink-secondary">{employee.role}</p>
-                <p className="mt-1 text-xs font-bold uppercase text-brand-primary">{employee.department}</p>
+                <p className="mt-1 text-sm text-ink-secondary">Designation: {employee.role}</p>
+                <p className="mt-1 text-xs font-bold uppercase text-brand-primary">Department: {employee.department}</p>
               </div>
               <Badge>{employee.status}</Badge>
             </div>

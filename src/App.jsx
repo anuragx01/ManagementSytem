@@ -41,8 +41,10 @@ export default function App() {
             <Route path="/employees" element={<ProtectedRoute routeKey="employees"><TeamDirectory /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute routeKey="team"><TeamDirectory /></ProtectedRoute>} />
             <Route path="/departments" element={<ProtectedRoute routeKey="departments"><Departments /></ProtectedRoute>} />
+            <Route path="/departments/:departmentId" element={<ProtectedRoute routeKey="departments"><Departments /></ProtectedRoute>} />
             <Route path="/organization" element={<ProtectedRoute routeKey="organization"><Organization /></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute routeKey="projects"><Projects /></ProtectedRoute>} />
+            <Route path="/projects/:projectId" element={<ProtectedRoute routeKey="projects"><Projects /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute routeKey="reports"><Reports /></ProtectedRoute>} />
             <Route path="/payroll" element={<ProtectedRoute routeKey="payroll"><Payroll /></ProtectedRoute>} />
             <Route path="/audit-logs" element={<ProtectedRoute routeKey="auditLogs"><AuditLogs /></ProtectedRoute>} />
