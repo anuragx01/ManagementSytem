@@ -1,68 +1,126 @@
-import React from "react";
-import { useState } from 'react';
+import React, { useMemo, useRef, useState } from "react";
 import { Camera, KeyRound, Mail, MapPin, Pencil, Phone, ShieldCheck } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
-import { currentUser } from '../data/mockData';
+import Modal, { ModalActions } from '../components/ui/Modal';
 import useApiData from '../hooks/useApiData';
-import { employeesApi } from '../lib/api';
+import { authApi, documentsApi, employeesApi } from '../lib/api';
 import { mapEmployee } from '../lib/mappers';
 
+const defaultProfile = {
+  name: 'Employee',
+  email: '',
+  phone: '',
+  location: '',
+  role: 'Employee',
+  department: 'General',
+  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80',
+  employeeId: '—',
+  manager: '—',
+  joined: '—',
+};
+
 export default function Profile() {
+  const fileInputRef = useRef(null);
   const [editing, setEditing] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [profileStatus, setProfileStatus] = useState('');
-  const [savedProfile, setSavedProfile] = useState({});
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
   const [draftProfile, setDraftProfile] = useState({
-    name: currentUser.name,
-    email: currentUser.email,
-    phone: currentUser.phone,
-    location: currentUser.location,
+    phone: '',
+    personalEmail: '',
+    address: '',
+    city: '',
   });
-  const { data: apiEmployee, error } = useApiData(
+  const { data: apiEmployee, error, refresh } = useApiData(
     async () => mapEmployee(await employeesApi.me()),
     null,
     [],
   );
   const profile = apiEmployee
     ? {
-        ...currentUser,
+        ...defaultProfile,
         name: apiEmployee.name,
-        role: apiEmployee.role,
+        role: apiEmployee.raw?.designationName || apiEmployee.role,
         department: apiEmployee.department,
-        email: apiEmployee.email || currentUser.email,
-        phone: apiEmployee.phone || currentUser.phone,
+        email: apiEmployee.email || defaultProfile.email,
+        phone: apiEmployee.phone || defaultProfile.phone,
         avatar: apiEmployee.avatar,
-        employeeId: apiEmployee.raw?.employeeId || currentUser.employeeId,
-        location: [apiEmployee.raw?.city, apiEmployee.raw?.state].filter(Boolean).join(', ') || currentUser.location,
-        manager: apiEmployee.raw?.reportingManagerName || currentUser.manager,
-        joined: apiEmployee.raw?.dateOfJoining || currentUser.joined,
+        employeeId: apiEmployee.raw?.employeeId || defaultProfile.employeeId,
+        location: [apiEmployee.raw?.city, apiEmployee.raw?.state].filter(Boolean).join(', ') || defaultProfile.location,
+        manager: apiEmployee.raw?.reportingManagerName || defaultProfile.manager,
+        joined: apiEmployee.raw?.dateOfJoining || defaultProfile.joined,
+        raw: apiEmployee.raw,
       }
-    : currentUser;
-  const displayProfile = { ...profile, ...savedProfile, ...(editing ? draftProfile : {}) };
+    : defaultProfile;
+
+  const displayProfile = useMemo(() => ({ ...profile, ...(editing ? draftProfile : {}) }), [profile, editing, draftProfile]);
+
   const details = [
     ['Employee ID', displayProfile.employeeId],
+    ['Name', displayProfile.name],
+    ['Email', displayProfile.email],
+    ['Phone Number', displayProfile.phone],
     ['Department', displayProfile.department],
-    ['Manager', displayProfile.manager],
-    ['Joined', displayProfile.joined],
-    ['Location', displayProfile.location],
-    ['Role', displayProfile.role],
+    ['Designation', displayProfile.role],
+    ['Joining Date', displayProfile.joined],
+    ['Reporting Manager', displayProfile.manager],
   ];
 
-  function saveProfile(event) {
+  async function saveProfile(event) {
     event.preventDefault();
-    setSavedProfile(draftProfile);
-    setProfileStatus('Profile updated successfully.');
-    setEditing(false);
+    if (!apiEmployee?.raw?.id && !apiEmployee?.id) return;
+    setProfileStatus('Updating profile...');
+    try {
+      const employeeId = apiEmployee.raw?.id || apiEmployee.id;
+      await employeesApi.update(employeeId, {
+        ...apiEmployee.raw,
+        phoneNumber: draftProfile.phone,
+        personalEmail: draftProfile.personalEmail,
+        address: draftProfile.address,
+        city: draftProfile.city,
+      });
+      refresh();
+      setProfileStatus('Profile updated successfully.');
+      setEditing(false);
+    } catch (err) {
+      setProfileStatus(err.message);
+    }
+  }
+
+  async function uploadProfilePicture(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setProfileStatus('Uploading profile picture...');
+    try {
+      await documentsApi.uploadProfilePicture(file);
+      refresh();
+      setProfileStatus('Profile picture updated.');
+    } catch (err) {
+      setProfileStatus(err.message);
+    }
+  }
+
+  async function changePassword() {
+    setProfileStatus('Updating password...');
+    try {
+      await authApi.changePassword(passwordForm);
+      setProfileStatus('Password changed successfully.');
+      setPasswordOpen(false);
+      setPasswordForm({ currentPassword: '', newPassword: '' });
+    } catch (err) {
+      setProfileStatus(err.message);
+    }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm font-bold text-brand-primary">Employee Profile</p>
-        <h1 className="mt-1 text-3xl font-extrabold text-ink-primary">Profile details</h1>
+    <div className="page-stack">
+      <div className="page-header">
+        <p className="page-kicker">Employee Profile</p>
+        <h1 className="page-title">Profile details</h1>
       </div>
-      {error && <p className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700">Showing mock profile because API is unavailable: {error}</p>}
-      {profileStatus && <p className="rounded-2xl bg-brand-successSoft px-4 py-3 text-sm font-semibold text-emerald-700">{profileStatus}</p>}
+      {error && <p className="alert-warning" role="alert">{error}</p>}
+      {profileStatus && <p className="alert-success" role="status">{profileStatus}</p>}
       <Card className="overflow-hidden">
         <div className="h-32 bg-gradient-to-r from-brand-primary via-info to-brand-secondary" />
         <div className="-mt-14 flex flex-col gap-6 p-6 md:flex-row md:items-end md:justify-between">
@@ -72,34 +130,41 @@ export default function Profile() {
               <h2 className="text-3xl font-extrabold text-ink-primary">{displayProfile.name}</h2>
               <p className="mt-1 text-ink-secondary">{displayProfile.role}</p>
               <div className="mt-3 flex flex-wrap gap-3 text-sm text-ink-secondary">
-                <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-brand-primary" /> {displayProfile.email}</span>
-                <span className="flex items-center gap-2"><Phone className="h-4 w-4 text-brand-primary" /> {displayProfile.phone}</span>
+                <span className="flex items-center gap-2"><Mail className="h-4 w-4 shrink-0 text-brand-primary" aria-hidden="true" /> {displayProfile.email}</span>
+                <span className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0 text-brand-primary" aria-hidden="true" /> {displayProfile.phone}</span>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => {
-              setDraftProfile({ name: profile.name, email: profile.email, phone: profile.phone, location: profile.location });
+              setDraftProfile({
+                phone: profile.phone || '',
+                personalEmail: profile.raw?.personalEmail || '',
+                address: profile.raw?.address || '',
+                city: profile.raw?.city || '',
+              });
               setEditing((value) => !value);
             }}><Pencil className="h-4 w-4" /> Edit Profile</Button>
-            <Button variant="secondary"><KeyRound className="h-4 w-4" /> Change Password</Button>
-            <Button variant="secondary"><Camera className="h-4 w-4" /> Upload Picture</Button>
+            <Button variant="secondary" onClick={() => setPasswordOpen(true)}><KeyRound className="h-4 w-4" /> Change Password</Button>
+            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}><Camera className="h-4 w-4" /> Upload Picture</Button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={uploadProfilePicture} />
           </div>
         </div>
       </Card>
+
       {editing && (
-        <Card className="p-5">
-          <h3 className="text-lg font-extrabold text-ink-primary">Edit Profile</h3>
+        <Card className="p-5" interactive={false}>
+          <h2 className="section-title">Edit Contact Information</h2>
           <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={saveProfile}>
             {[
-              ['name', 'Name'],
-              ['email', 'Email'],
-              ['phone', 'Phone'],
-              ['location', 'Location'],
+              ['phone', 'Phone Number'],
+              ['personalEmail', 'Personal Email'],
+              ['address', 'Address'],
+              ['city', 'City'],
             ].map(([key, label]) => (
               <label key={key} className="block">
                 <span className="text-sm font-semibold text-ink-primary">{label}</span>
-                <input className="mt-2 w-full rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand-primary focus:ring-4 focus:ring-red-100" value={draftProfile[key]} onChange={(event) => setDraftProfile((current) => ({ ...current, [key]: event.target.value }))} />
+                <input className="field-control mt-2" value={draftProfile[key]} onChange={(event) => setDraftProfile((current) => ({ ...current, [key]: event.target.value }))} />
               </label>
             ))}
             <div className="flex gap-3 md:col-span-2">
@@ -109,9 +174,10 @@ export default function Profile() {
           </form>
         </Card>
       )}
-      <section className="grid gap-5 lg:grid-cols-[1fr_0.6fr]">
+
+      <section className="card-grid lg:grid-cols-[1fr_0.6fr]">
         <Card className="p-5">
-          <h3 className="text-lg font-extrabold text-ink-primary">Employee Details</h3>
+          <h2 className="section-title">Employee Details</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             {details.map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-line p-4">
@@ -122,12 +188,31 @@ export default function Profile() {
           </div>
         </Card>
         <Card className="p-5">
-          <ShieldCheck className="h-8 w-8 text-brand-secondary" />
-          <h3 className="mt-4 text-lg font-extrabold text-ink-primary">Verified employee</h3>
-          <p className="mt-2 text-sm leading-6 text-ink-secondary">Profile, contact, and employment information are reviewed for the current payroll cycle.</p>
-          <p className="mt-5 flex items-center gap-2 text-sm font-semibold text-ink-secondary"><MapPin className="h-4 w-4 text-brand-primary" /> {displayProfile.location}</p>
+          <ShieldCheck className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
+          <h2 className="section-title mt-4">Verified employee</h2>
+          <p className="mt-2 text-sm leading-6 text-ink-secondary">Profile, contact, and employment information are synced with the employee API.</p>
+          <p className="mt-5 flex items-center gap-2 text-sm font-semibold text-ink-secondary"><MapPin className="h-4 w-4 shrink-0 text-brand-primary" aria-hidden="true" /> {displayProfile.location}</p>
         </Card>
       </section>
+
+      <Modal
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        title="Change Password"
+        description="Update your account password securely."
+        footer={<ModalActions onCancel={() => setPasswordOpen(false)} onConfirm={changePassword} confirmLabel="Update Password" />}
+      >
+        <div className="grid gap-4">
+          <label className="block">
+            <span className="text-sm font-semibold text-ink-primary">Current Password</span>
+            <input type="password" className="field-control mt-2" value={passwordForm.currentPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-ink-primary">New Password</span>
+            <input type="password" className="field-control mt-2" value={passwordForm.newPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} />
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 }

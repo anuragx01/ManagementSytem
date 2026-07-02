@@ -1,8 +1,7 @@
 import React from "react";
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
-import Sidebar from './Sidebar';
+import Sidebar, { MobileNavToggle } from './Sidebar';
 import Navbar from './Navbar';
 import Toast from '../ui/Toast';
 
@@ -10,20 +9,12 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface-muted">
+    <div className="min-h-screen bg-surface-muted lg:pl-[12.5rem] xl:pl-60">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div>
+      <div className="min-h-screen">
         <Navbar />
-        <button
-          className="fixed left-5 top-18 z-40 grid h-12 w-12 place-items-center rounded-2xl bg-brand-primary text-white shadow-soft transition hover:bg-brand-secondary"
-          onClick={() => setSidebarOpen((value) => !value)}
-          aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
-          aria-expanded={sidebarOpen}
-          type="button"
-        >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-        <main className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
+        <MobileNavToggle isOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} />
+        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           <Outlet />
         </main>
       </div>

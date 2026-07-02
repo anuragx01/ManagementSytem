@@ -25,31 +25,31 @@ const adminAccentClasses = [
 
 export default function AdminConsole() {
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm font-bold text-brand-primary">Admin Console</p>
-        <h1 className="mt-1 text-3xl font-extrabold text-ink-primary">Complete system access</h1>
+    <div className="page-stack">
+      <div className="page-header">
+        <p className="page-kicker">Admin Console</p>
+        <h1 className="page-title">Complete system access</h1>
       </div>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <section className="card-grid md:grid-cols-2 xl:grid-cols-3">
         {adminPowers.map((power, index) => {
           const Icon = power.icon;
           return (
             <Card key={power.title} className="p-5">
-              <div className={`grid h-12 w-12 place-items-center rounded-2xl ${adminAccentClasses[index % adminAccentClasses.length]}`}>
+              <div className={`stat-icon-wrap h-12 w-12 ${adminAccentClasses[index % adminAccentClasses.length]}`}>
                 <Icon className="h-5 w-5" />
               </div>
-              <h2 className="mt-4 text-lg font-extrabold text-ink-primary">{power.title}</h2>
+              <h2 className="section-title mt-4">{power.title}</h2>
               <p className="mt-2 text-sm leading-6 text-ink-secondary">{power.detail}</p>
             </Card>
           );
         })}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-extrabold text-ink-primary">Employee Activity Monitor</h2>
+      <section className="section-grid xl:grid-cols-2">
+        <Card className="p-5" interactive={false}>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <h2 className="section-title">Employee Activity Monitor</h2>
             <Button variant="blue"><Activity className="h-4 w-4" /> Monitor</Button>
           </div>
           <div className="mt-5 space-y-3">
@@ -63,9 +63,9 @@ export default function AdminConsole() {
           </div>
         </Card>
 
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-extrabold text-ink-primary">Announcement Manager</h2>
+        <Card className="p-5" interactive={false}>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <h2 className="section-title">Announcement Manager</h2>
             <Button><Megaphone className="h-4 w-4" /> New Announcement</Button>
           </div>
           <div className="mt-5 space-y-3">

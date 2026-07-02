@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function useApiData(loader, fallback, dependencies = []) {
@@ -6,6 +6,11 @@ export default function useApiData(loader, fallback, dependencies = []) {
   const [data, setData] = useState(fallback);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const refresh = useCallback(() => {
+    setReloadKey((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -35,7 +40,7 @@ export default function useApiData(loader, fallback, dependencies = []) {
     return () => {
       active = false;
     };
-  }, [isAuthenticated, ...dependencies]);
+  }, [isAuthenticated, reloadKey, ...dependencies]);
 
-  return { data, loading, error };
+  return { data, loading, error, refresh };
 }

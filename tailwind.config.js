@@ -30,12 +30,25 @@ export default {
       },
       borderRadius: {
         card: '16px',
+        panel: '24px',
+      },
+      spacing: {
+        18: '4.5rem',
+        22: '5.5rem',
+      },
+      width: {
+        76: '19rem',
       },
       boxShadow: {
         soft: '0 14px 40px rgba(17, 24, 39, 0.08)',
         glow: '0 18px 50px rgba(225, 20, 28, 0.18)',
         blue: '0 18px 50px rgba(27, 42, 74, 0.18)',
         info: '0 18px 50px rgba(27, 42, 74, 0.14)',
+        panel: '0 32px 100px rgba(16, 24, 40, 0.12)',
+        lift: '0 22px 52px rgba(225, 20, 28, 0.42)',
+      },
+      transitionDuration: {
+        250: '250ms',
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui'],

@@ -1,0 +1,99 @@
+import {
+  Bell,
+  Building2,
+  CalendarDays,
+  CalendarCheck,
+  ClipboardList,
+  DollarSign,
+  FileBarChart,
+  FileText,
+  LayoutDashboard,
+  NotebookTabs,
+  Palmtree,
+  User,
+  Users,
+  FolderKanban,
+} from 'lucide-react';
+
+export const routePaths = {
+  dashboard: '/dashboard',
+  attendance: '/attendance',
+  leave: '/leave',
+  tasks: '/tasks',
+  calendar: '/calendar',
+  holidays: '/holidays',
+  notifications: '/notifications',
+  profile: '/profile',
+  employees: '/employees',
+  departments: '/departments',
+  organization: '/organization',
+  projects: '/projects',
+  reports: '/reports',
+  payroll: '/payroll',
+  auditLogs: '/audit-logs',
+  settings: '/settings',
+  team: '/team',
+  dailyReport: '/daily-reports',
+};
+
+const item = (label, path, routeKey, icon) => ({ label, path, routeKey, icon });
+
+export const navigationByRole = {
+  employee: [
+    item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),
+    item('My Attendance', routePaths.attendance, 'attendance', CalendarCheck),
+    item('My Leave', routePaths.leave, 'leave', Palmtree),
+    item('My Tasks', routePaths.tasks, 'tasks', ClipboardList),
+    item('Daily Work Report', routePaths.dailyReport, 'dailyReport', FileText),
+    item('Team Directory', routePaths.team, 'team', Users),
+    item('Calendar', routePaths.calendar, 'calendar', CalendarDays),
+    item('Holidays', routePaths.holidays, 'holidays', NotebookTabs),
+    item('Notifications', routePaths.notifications, 'notifications', Bell),
+    item('My Profile', routePaths.profile, 'profile', User),
+  ],
+  hr: [
+    item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),
+    item('Employees', routePaths.employees, 'employees', Users),
+    item('Attendance', routePaths.attendance, 'attendance', CalendarCheck),
+    item('Leave Approval', routePaths.leave, 'leave', Palmtree),
+    item('Departments', routePaths.departments, 'departments', Building2),
+    item('Calendar', routePaths.calendar, 'calendar', CalendarDays),
+    item('Reports', routePaths.reports, 'reports', FileBarChart),
+    item('Organization', routePaths.organization, 'organization', Building2),
+    item('Notifications', routePaths.notifications, 'notifications', Bell),
+  ],
+  admin: [
+    item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),
+    item('Employees', routePaths.employees, 'employees', Users),
+    item('Departments', routePaths.departments, 'departments', Building2),
+    item('Attendance', routePaths.attendance, 'attendance', CalendarCheck),
+    item('Leave', routePaths.leave, 'leave', Palmtree),
+    item('Projects', routePaths.projects, 'projects', FolderKanban),
+    item('Tasks', routePaths.tasks, 'tasks', ClipboardList),
+    item('Reports', routePaths.reports, 'reports', FileBarChart),
+    item('Payroll', routePaths.payroll, 'payroll', DollarSign),
+  ],
+  manager: [
+    item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),
+    item('My Team', routePaths.employees, 'employees', Users),
+    item('Attendance', routePaths.attendance, 'attendance', CalendarCheck),
+    item('Team Leave', routePaths.leave, 'leave', Palmtree),
+    item('Projects', routePaths.projects, 'projects', FolderKanban),
+    item('Tasks', routePaths.tasks, 'tasks', ClipboardList),
+    item('Reports', routePaths.reports, 'reports', FileBarChart),
+    item('Calendar', routePaths.calendar, 'calendar', CalendarDays),
+    item('Notifications', routePaths.notifications, 'notifications', Bell),
+  ],
+  team_lead: [
+    item('Dashboard', routePaths.dashboard, 'dashboard', LayoutDashboard),
+    item('Team Tasks', routePaths.tasks, 'tasks', ClipboardList),
+    item('Projects', routePaths.projects, 'projects', FolderKanban),
+    item('Attendance', routePaths.attendance, 'attendance', CalendarCheck),
+    item('Calendar', routePaths.calendar, 'calendar', CalendarDays),
+    item('Notifications', routePaths.notifications, 'notifications', Bell),
+  ],
+};
+
+export function getNavigationForRole(roleKey) {
+  return navigationByRole[roleKey] || navigationByRole.employee;
+}

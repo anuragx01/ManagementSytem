@@ -1,79 +1,121 @@
-import React from "react";
-import { useState } from 'react';
-import { CheckCircle2, FileText, Plus } from 'lucide-react';
-import { Can } from '../components/RoleGate';
-import Badge from '../components/ui/Badge';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FileText, History, Save } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
-import { EmptyState, SkeletonCard } from '../components/ui/Skeleton';
-import { reportEntries } from '../data/mockData';
+import PageHeader from '../components/ui/PageHeader';
+import { EmptyState, LoadingIndicator } from '../components/ui/Skeleton';
+import useApiData from '../hooks/useApiData';
+import { employeesApi } from '../lib/api';
+import { listDailyReportHistory, loadDailyReport, saveDailyReport, todayKey } from '../lib/dailyReportStorage';
+
+const emptyForm = {
+  completedWork: '',
+  pendingWork: '',
+  tomorrowPlan: '',
+  blockers: '',
+  status: 'draft',
+};
 
 export default function DailyReports() {
-  const [showReportForm, setShowReportForm] = useState(false);
-  const [reportStatus, setReportStatus] = useState('');
+  const { data: profile, loading } = useApiData(() => employeesApi.me(), null, []);
+  const [form, setForm] = useState(emptyForm);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    if (!profile?.userId && !profile?.id) return;
+    const userKey = profile.userId || profile.id;
+    const saved = loadDailyReport(userKey);
+    if (saved) setForm(saved);
+    setHistory(listDailyReportHistory(userKey));
+  }, [profile?.userId, profile?.id]);
+
+  const canEdit = form.status !== 'submitted';
+  const userKey = profile?.userId || profile?.id;
+
+  function persist(nextForm) {
+    if (!userKey) return;
+    saveDailyReport(userKey, nextForm);
+    setHistory(listDailyReportHistory(userKey));
+  }
+
+  function saveDraft() {
+    const next = { ...form, status: 'draft' };
+    setForm(next);
+    persist(next);
+    setStatusMessage('Draft saved locally.');
+  }
 
   function submitReport(event) {
     event.preventDefault();
-    setReportStatus('Daily work report submitted.');
-    setShowReportForm(false);
+    if (!canEdit) return;
+    const next = { ...form, status: 'submitted', submittedAt: new Date().toISOString() };
+    setForm(next);
+    persist(next);
+    setStatusMessage('Daily work report submitted.');
   }
 
+  const todayLabel = useMemo(() => new Intl.DateTimeFormat('en-GB', { dateStyle: 'full' }).format(new Date()), []);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <p className="text-sm font-bold text-brand-primary">Daily Work Report</p>
-          <h1 className="mt-1 text-3xl font-extrabold text-ink-primary">Today’s summary</h1>
-        </div>
-        <Can roles={['employee', 'admin']}>
-          <Button onClick={() => setShowReportForm((value) => !value)}><Plus className="h-4 w-4" /> New Report</Button>
-        </Can>
-      </div>
-      {reportStatus && <p className="rounded-2xl bg-brand-successSoft px-4 py-3 text-sm font-semibold text-emerald-700">{reportStatus}</p>}
-      {showReportForm && (
-        <Can roles={['employee', 'admin']}>
-          <Card className="p-5">
-            <h2 className="text-lg font-extrabold text-ink-primary">Submit Daily Work Report</h2>
-            <form className="mt-5 grid gap-4" onSubmit={submitReport}>
-              <label className="block">
-                <span className="text-sm font-semibold text-ink-primary">Work Summary</span>
-                <textarea className="mt-2 min-h-28 w-full rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand-primary focus:ring-4 focus:ring-red-100" required />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-ink-primary">Blockers</span>
-                <textarea className="mt-2 min-h-20 w-full rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand-primary focus:ring-4 focus:ring-red-100" />
-              </label>
-              <Button type="submit">Submit Report</Button>
-            </form>
-          </Card>
-        </Can>
-      )}
-      <Can roles={['admin', 'manager']}>
-        <Card className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-lg font-extrabold text-ink-primary">Review queue</h2>
-            <p className="mt-1 text-sm text-ink-secondary">Managers can review completed work and track employee progress.</p>
+    <div className="page-stack">
+      <PageHeader
+        kicker="Daily Work Report"
+        title="End-of-day summary"
+        description={`Submit your completed work, pending items, tomorrow's plan, and blockers for ${todayLabel}.`}
+      />
+
+      {loading && <LoadingIndicator message="Loading profile..." />}
+      {statusMessage && <p className="alert-success" role="status">{statusMessage}</p>}
+
+      <Card className="p-5" interactive={false}>
+        <form className="grid gap-4" onSubmit={submitReport}>
+          {[
+            ['completedWork', 'Completed Work'],
+            ['pendingWork', 'Pending Work'],
+            ['tomorrowPlan', "Tomorrow's Plan"],
+            ['blockers', 'Issues / Blockers'],
+          ].map(([key, label]) => (
+            <label key={key} className="block">
+              <span className="text-sm font-semibold text-ink-primary">{label}</span>
+              <textarea
+                className="field-control mt-2 min-h-24"
+                value={form[key]}
+                onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
+                disabled={!canEdit}
+                required={key === 'completedWork'}
+              />
+            </label>
+          ))}
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="secondary" onClick={saveDraft} disabled={!canEdit}>
+              <Save className="h-4 w-4" /> Save Draft
+            </Button>
+            <Button type="submit" disabled={!canEdit}>
+              <FileText className="h-4 w-4" /> Submit Report
+            </Button>
           </div>
-          <Button variant="secondary"><CheckCircle2 className="h-4 w-4" /> Review Reports</Button>
-        </Card>
-      </Can>
-      <section className="grid gap-5 lg:grid-cols-3">
-        {reportEntries.map((entry) => (
-          <Card key={entry.area} className="p-5">
-            <FileText className="h-6 w-6 text-brand-primary" />
-            <h2 className="mt-4 text-xl font-extrabold text-ink-primary">{entry.area}</h2>
-            <p className="mt-2 min-h-16 text-sm leading-6 text-ink-secondary">{entry.work}</p>
-            <div className="mt-5 flex items-center justify-between">
-              <span className="text-sm font-bold text-ink-primary">{entry.hours}</span>
-              <Badge>{entry.status}</Badge>
+          {!canEdit && (
+            <p className="text-sm text-ink-secondary">Report submitted for {todayKey()}. Editing is locked until backend submission APIs are available.</p>
+          )}
+        </form>
+      </Card>
+
+      <Card className="p-5" interactive={false}>
+        <h2 className="section-title flex items-center gap-2"><History className="h-5 w-5" /> Submission History</h2>
+        <div className="mt-4 space-y-3">
+          {history.length === 0 && <EmptyState title="No reports yet" message="Saved drafts and submitted reports will appear here." />}
+          {history.map((entry) => (
+            <div key={entry.date} className="rounded-2xl border border-line px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold text-ink-primary">{entry.date}</p>
+                <span className="text-xs font-bold uppercase text-brand-primary">{entry.status || 'draft'}</span>
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm text-ink-secondary">{entry.completedWork || 'No summary saved.'}</p>
             </div>
-          </Card>
-        ))}
-      </section>
-      <section className="grid gap-5 lg:grid-cols-2">
-        <SkeletonCard />
-        <EmptyState title="No blockers reported" message="Daily blockers and manager comments will appear here." />
-      </section>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }
