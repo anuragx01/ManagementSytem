@@ -110,6 +110,12 @@ public class S3DocumentService {
         return uploadFile(key, content, size, contentType);
     }
 
+    public String uploadTaskAttachment(UUID taskId, String fileName, InputStream content, long size, String contentType) {
+        String sanitizedFileName = sanitizeFileName(fileName);
+        String key = String.format("tasks/%s/attachments/%s/%s", taskId, UUID.randomUUID(), sanitizedFileName);
+        return uploadFile(key, content, size, contentType);
+    }
+
     public String uploadProfilePicture(UUID userId, InputStream content, long size, String contentType) {
         String key = String.format("profile-pictures/%s/%s", userId, UUID.randomUUID());
         return uploadFile(key, content, size, contentType);

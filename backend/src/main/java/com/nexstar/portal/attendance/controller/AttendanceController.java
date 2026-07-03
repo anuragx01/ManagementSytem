@@ -84,15 +84,26 @@ public class AttendanceController {
 
     // ── HR / Manager View ─────────────────────────────────────────────────────
 
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
+    @Operation(summary = "Get all employee attendance records")
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceRecordResponse>>> getAllAttendance(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                attendanceService.getAllAttendance(page, size)));
+    }
+
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER')")
     @Operation(summary = "Get attendance records for a specific employee")
     public ResponseEntity<ApiResponse<List<AttendanceRecordResponse>>> getEmployeeAttendance(
             @PathVariable UUID employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
         return ResponseEntity.ok(ApiResponse.success(
-                attendanceService.getEmployeeAttendance(employeeId, from, to)));
+                attendanceService.getEmployeeAttendance(employeeId, from, to, currentUser)));
     }
 
     @GetMapping("/dashboard")

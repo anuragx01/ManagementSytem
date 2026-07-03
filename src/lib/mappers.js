@@ -34,6 +34,8 @@ export function mapTask(task) {
 
 export function mapAttendance(row) {
   return {
+    employeeName: row.employeeName || '-',
+    employeeCode: row.employeeCode || row.employeeId || '-',
     date: row.date || '-',
     checkIn: formatTime(row.clockIn),
     checkOut: formatTime(row.clockOut),

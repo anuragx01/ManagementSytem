@@ -29,6 +29,7 @@ public class TaskController {
     // ── Tasks ─────────────────────────────────────────────────────────────────
 
     @PostMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('MANAGER') or hasRole('TEAM_LEAD')")
     @Operation(summary = "Create a new task")
     public ResponseEntity<ApiResponse<TaskResponse>> createTask(
             @Valid @RequestBody CreateTaskRequest request,
@@ -38,12 +39,16 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Get task by ID")
-    public ResponseEntity<ApiResponse<TaskResponse>> getTask(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(taskService.getTask(id)));
+    public ResponseEntity<ApiResponse<TaskResponse>> getTask(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(taskService.getTask(id, currentUser)));
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Search and filter tasks")
     public ResponseEntity<ApiResponse<PageResponse<TaskResponse>>> searchTasks(
             @RequestParam(required = false) UUID projectId,
@@ -56,7 +61,8 @@ public class TaskController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir) {
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
 
         TaskFilterRequest filter = TaskFilterRequest.builder()
                 .projectId(projectId)
@@ -72,10 +78,11 @@ public class TaskController {
                 .sortDir(sortDir)
                 .build();
 
-        return ResponseEntity.ok(ApiResponse.success(taskService.searchTasks(filter)));
+        return ResponseEntity.ok(ApiResponse.success(taskService.searchTasks(filter, currentUser)));
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Update a task (partial update)")
     public ResponseEntity<ApiResponse<TaskResponse>> updateTask(
             @PathVariable UUID id,
@@ -115,6 +122,7 @@ public class TaskController {
     // ── Comments ──────────────────────────────────────────────────────────────
 
     @PostMapping("/{taskId}/comments")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Add a comment to a task")
     public ResponseEntity<ApiResponse<TaskCommentDto>> addComment(
             @PathVariable UUID taskId,
@@ -125,9 +133,12 @@ public class TaskController {
     }
 
     @GetMapping("/{taskId}/comments")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Get all comments for a task")
-    public ResponseEntity<ApiResponse<List<TaskCommentDto>>> getComments(@PathVariable UUID taskId) {
-        return ResponseEntity.ok(ApiResponse.success(taskService.getComments(taskId)));
+    public ResponseEntity<ApiResponse<List<TaskCommentDto>>> getComments(
+            @PathVariable UUID taskId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(taskService.getComments(taskId, currentUser)));
     }
 
     @DeleteMapping("/comments/{commentId}")
@@ -142,6 +153,7 @@ public class TaskController {
     // ── Checklists ────────────────────────────────────────────────────────────
 
     @PutMapping("/{taskId}/checklists")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Replace all checklist items for a task")
     public ResponseEntity<ApiResponse<List<TaskChecklistDto>>> updateChecklist(
             @PathVariable UUID taskId,
@@ -150,6 +162,7 @@ public class TaskController {
     }
 
     @PostMapping("/checklists/{checklistId}/toggle")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('MANAGER') or hasRole('TEAM_LEAD') or hasRole('EMPLOYEE')")
     @Operation(summary = "Toggle a checklist item completion")
     public ResponseEntity<ApiResponse<TaskChecklistDto>> toggleChecklistItem(
             @PathVariable UUID checklistId) {

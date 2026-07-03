@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Clock, LogIn, LogOut } from 'lucide-react';
 import { Can } from '../components/RoleGate';
+import { useRole } from '../context/RoleContext';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
@@ -11,6 +12,7 @@ import { attendanceApi, pageContent } from '../lib/api';
 import { formatTime, mapAttendance } from '../lib/mappers';
 
 export default function Attendance() {
+  const { activeRole } = useRole();
   const [actionStatus, setActionStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -19,10 +21,14 @@ export default function Attendance() {
     null,
     [],
   );
+  const canViewAllAttendance = ['admin', 'hr'].includes(activeRole.key);
   const { data: rows, loading, error, refresh: refreshHistory } = useApiData(
-    async () => pageContent(await attendanceApi.my({ size: 30 })).map(mapAttendance),
+    async () => {
+      const attendanceSource = canViewAllAttendance ? attendanceApi.all : attendanceApi.my;
+      return pageContent(await attendanceSource({ size: canViewAllAttendance ? 100 : 30 })).map(mapAttendance);
+    },
     [],
-    [],
+    [canViewAllAttendance],
   );
 
   const summary = [
@@ -49,7 +55,7 @@ export default function Attendance() {
   const filteredRows = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
     return rows.filter((row) => {
-      const matchesSearch = !term || [row.date, row.checkIn, row.checkOut, row.hours, row.status].some((value) => String(value || '').toLowerCase().includes(term));
+      const matchesSearch = !term || [row.employeeName, row.employeeCode, row.date, row.checkIn, row.checkOut, row.hours, row.status].some((value) => String(value || '').toLowerCase().includes(term));
       const matchesStatus = !statusFilter || row.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -175,17 +181,19 @@ export default function Attendance() {
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-muted text-xs uppercase text-ink-secondary">
                 <tr>
-                  {['Date', 'Check In', 'Check Out', 'Hours', 'Status'].map((head) => <th key={head} className="px-5 py-4">{head}</th>)}
+                  {(canViewAllAttendance ? ['Employee Name', 'Employee ID', 'Date', 'Check In', 'Check Out', 'Hours', 'Status'] : ['Date', 'Check In', 'Check Out', 'Hours', 'Status']).map((head) => <th key={head} className="px-5 py-4">{head}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center text-ink-secondary">No attendance records yet.</td>
+                    <td colSpan={canViewAllAttendance ? 7 : 5} className="px-5 py-8 text-center text-ink-secondary">No attendance records yet.</td>
                   </tr>
                 )}
                 {filteredRows.map((row) => (
-                  <tr key={row.date + row.checkIn} className="border-t border-line">
+                  <tr key={row.raw?.id || `${row.employeeCode}-${row.date}-${row.checkIn}`} className="border-t border-line">
+                    {canViewAllAttendance && <td className="px-5 py-4 font-semibold text-ink-primary">{row.employeeName}</td>}
+                    {canViewAllAttendance && <td className="px-5 py-4 text-ink-secondary">{row.employeeCode}</td>}
                     <td className="px-5 py-4 font-semibold text-ink-primary">{row.date}</td>
                     <td className="px-5 py-4 text-ink-secondary">{row.checkIn}</td>
                     <td className="px-5 py-4 text-ink-secondary">{row.checkOut}</td>

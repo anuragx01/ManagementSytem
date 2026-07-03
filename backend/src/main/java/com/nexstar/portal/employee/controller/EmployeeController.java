@@ -37,6 +37,7 @@ public class EmployeeController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER') or hasRole('TEAM_LEAD')")
     @Operation(summary = "Search and filter employees")
     public ResponseEntity<ApiResponse<PageResponse<EmployeeResponse>>> searchEmployees(
             @ModelAttribute EmployeeFilterRequest filter) {
@@ -44,6 +45,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER') or hasRole('TEAM_LEAD')")
     @Operation(summary = "Get employee by ID")
     public ResponseEntity<ApiResponse<EmployeeResponse>> getEmployee(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getEmployee(id)));
@@ -54,6 +56,14 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<EmployeeResponse>> getMyProfile(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getEmployeeByUserId(currentUser.getId())));
+    }
+
+    @PutMapping("/me")
+    @Operation(summary = "Update current user's permitted profile fields")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> updateMyProfile(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @RequestBody CreateEmployeeRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Profile updated", employeeService.updateOwnProfile(currentUser.getId(), request)));
     }
 
     @PutMapping("/{id}")
@@ -78,12 +88,14 @@ public class EmployeeController {
     // ── Emergency Contacts ────────────────────────────────────────────────────
 
     @GetMapping("/{id}/emergency-contacts")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Get employee emergency contacts")
     public ResponseEntity<ApiResponse<List<EmergencyContact>>> getEmergencyContacts(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getEmergencyContacts(id)));
     }
 
     @PostMapping("/{id}/emergency-contacts")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Add emergency contact")
     public ResponseEntity<ApiResponse<EmergencyContact>> addEmergencyContact(
             @PathVariable UUID id,
@@ -93,6 +105,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/emergency-contacts/{contactId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Delete emergency contact")
     public ResponseEntity<ApiResponse<Void>> deleteEmergencyContact(@PathVariable UUID contactId) {
         employeeService.deleteEmergencyContact(contactId);
@@ -102,12 +115,14 @@ public class EmployeeController {
     // ── Skills ────────────────────────────────────────────────────────────────
 
     @GetMapping("/{id}/skills")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR') or hasRole('MANAGER') or hasRole('TEAM_LEAD')")
     @Operation(summary = "Get employee skills")
     public ResponseEntity<ApiResponse<List<EmployeeSkill>>> getSkills(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getSkills(id)));
     }
 
     @PostMapping("/{id}/skills")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Add employee skill")
     public ResponseEntity<ApiResponse<EmployeeSkill>> addSkill(
             @PathVariable UUID id,
@@ -117,6 +132,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/skills/{skillId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Remove employee skill")
     public ResponseEntity<ApiResponse<Void>> deleteSkill(@PathVariable UUID skillId) {
         employeeService.deleteSkill(skillId);
@@ -126,12 +142,14 @@ public class EmployeeController {
     // ── Employment History ────────────────────────────────────────────────────
 
     @GetMapping("/{id}/employment-history")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Get employment history")
     public ResponseEntity<ApiResponse<List<EmploymentHistory>>> getEmploymentHistory(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getEmploymentHistory(id)));
     }
 
     @PostMapping("/{id}/employment-history")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('HR')")
     @Operation(summary = "Add employment history entry")
     public ResponseEntity<ApiResponse<EmploymentHistory>> addEmploymentHistory(
             @PathVariable UUID id,

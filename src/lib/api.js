@@ -172,6 +172,7 @@ export const employeesApi = {
   me: () => apiRequest('/employees/me'),
   create: (body) => apiRequest('/employees', { method: 'POST', body }),
   update: (id, body) => apiRequest(`/employees/${id}`, { method: 'PUT', body }),
+  updateMe: (body) => apiRequest('/employees/me', { method: 'PUT', body }),
   terminate: (id, reason) => apiRequest(`/employees/${id}/terminate${toQuery({ reason })}`, { method: 'POST' }),
   emergencyContacts: (id) => apiRequest(`/employees/${id}/emergency-contacts`),
   addEmergencyContact: (id, body) => apiRequest(`/employees/${id}/emergency-contacts`, { method: 'POST', body }),
@@ -192,6 +193,7 @@ export const attendanceApi = {
   endBreak: () => apiRequest('/attendance/break/end', { method: 'POST' }),
   today: () => apiRequest('/attendance/today'),
   my: (params) => apiRequest(`/attendance/my${toQuery(params)}`),
+  all: (params) => apiRequest(`/attendance/all${toQuery(params)}`),
   employee: (employeeId, params) => apiRequest(`/attendance/employee/${employeeId}${toQuery(params)}`),
   dashboard: (params) => apiRequest(`/attendance/dashboard${toQuery(params)}`),
   regularize: (body) => apiRequest('/attendance/regularize', { method: 'POST', body }),
@@ -300,6 +302,11 @@ export const documentsApi = {
     formData.append('file', file);
     return apiRequest(`/documents/employee/${employeeId}/upload`, { method: 'POST', body: formData });
   },
+  uploadTaskAttachment: (taskId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiRequest(`/documents/task/${taskId}/upload`, { method: 'POST', body: formData });
+  },
   uploadProfilePicture: (file) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -315,6 +322,27 @@ export const reportsApi = {
   leave: (params) => apiRequest(`/reports/leave${toQuery(params)}`),
   employees: (params) => apiRequest(`/reports/employees${toQuery(params)}`),
   project: (projectId) => apiRequest(`/reports/project/${projectId}`),
+};
+
+export const payrollApi = {
+  list: (params) => apiRequest(`/payroll${toQuery(params)}`),
+  my: () => apiRequest('/payroll/my'),
+  create: (body) => apiRequest('/payroll', { method: 'POST', body }),
+  update: (id, body) => apiRequest(`/payroll/${id}`, { method: 'PATCH', body }),
+  remove: (id) => apiRequest(`/payroll/${id}`, { method: 'DELETE' }),
+};
+
+export const announcementsApi = {
+  list: (params) => apiRequest(`/announcements${toQuery(params)}`),
+  create: (body) => apiRequest('/announcements', { method: 'POST', body }),
+  update: (id, body) => apiRequest(`/announcements/${id}`, { method: 'PUT', body }),
+  remove: (id) => apiRequest(`/announcements/${id}`, { method: 'DELETE' }),
+};
+
+export const dailyReportsApi = {
+  my: () => apiRequest('/daily-reports/my'),
+  all: () => apiRequest('/daily-reports'),
+  submitMine: (body) => apiRequest('/daily-reports/my', { method: 'POST', body }),
 };
 
 // ─── Admin ────────────────────────────────────────────────────────────────────

@@ -58,6 +58,32 @@ public class DocumentController {
         }
     }
 
+    @PostMapping("/task/{taskId}/upload")
+    @Operation(summary = "Upload an attachment for a task")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadTaskAttachment(
+            @PathVariable UUID taskId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            String fileUrl = s3DocumentService.uploadTaskAttachment(
+                    taskId,
+                    file.getOriginalFilename(),
+                    file.getInputStream(),
+                    file.getSize(),
+                    file.getContentType());
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("fileUrl", fileUrl);
+            result.put("fileName", file.getOriginalFilename());
+            result.put("fileSize", file.getSize());
+            result.put("contentType", file.getContentType());
+
+            return ResponseEntity.status(201).body(ApiResponse.created("Task attachment uploaded successfully", result));
+        } catch (IOException ex) {
+            log.error("Failed to read uploaded task attachment: {}", ex.getMessage());
+            throw new BusinessException("Failed to read uploaded file.", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @PostMapping("/profile-picture")
     @Operation(summary = "Upload a profile picture for the current user")
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadProfilePicture(

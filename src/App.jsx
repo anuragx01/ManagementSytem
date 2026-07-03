@@ -5,6 +5,7 @@ import AppLayout from './components/layout/AppLayout';
 import { RoleProvider } from './context/RoleContext';
 import { AuthProvider } from './context/AuthContext';
 import Attendance from './pages/Attendance';
+import AdminConsole from './pages/AdminConsole';
 import AuditLogs from './pages/AuditLogs';
 import Calendar from './pages/Calendar';
 import Dashboard from './pages/Dashboard';
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/projects/:projectId" element={<ProtectedRoute routeKey="projects"><Projects /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute routeKey="reports"><Reports /></ProtectedRoute>} />
             <Route path="/payroll" element={<ProtectedRoute routeKey="payroll"><Payroll /></ProtectedRoute>} />
+            <Route path="/admin-console" element={<ProtectedRoute routeKey="adminConsole"><AdminConsole /></ProtectedRoute>} />
             <Route path="/audit-logs" element={<ProtectedRoute routeKey="auditLogs"><AuditLogs /></ProtectedRoute>} />
             <Route path="/daily-reports" element={<ProtectedRoute routeKey="dailyReport"><DailyReports /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute routeKey="settings"><Settings /></ProtectedRoute>} />

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Check, MessageSquare, Play, Plus, RefreshCw, TrendingUp, UserCheck } from 'lucide-react';
 import { Can } from '../components/RoleGate';
 import { useRole } from '../context/RoleContext';
@@ -9,17 +9,20 @@ import Card from '../components/ui/Card';
 import ProgressBar from '../components/ui/ProgressBar';
 import { LoadingIndicator } from '../components/ui/Skeleton';
 import useApiData from '../hooks/useApiData';
-import { employeesApi, organizationApi, pageContent, tasksApi } from '../lib/api';
+import { documentsApi, employeesApi, organizationApi, pageContent, tasksApi } from '../lib/api';
 import { mapTask } from '../lib/mappers';
 
 export default function Tasks() {
   const { activeRole } = useRole();
+  const performanceRef = useRef(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [taskStatus, setTaskStatus] = useState('');
+  const [taskView, setTaskView] = useState('all');
   const [expandedId, setExpandedId] = useState(null);
   const [commentDraft, setCommentDraft] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [detailCache, setDetailCache] = useState({});
+  const canReview = ['admin', 'manager', 'team_lead'].includes(activeRole.key);
 
   const { data: profile } = useApiData(() => employeesApi.me(), null, []);
   const { data: company } = useApiData(() => organizationApi.company(), null, []);
@@ -39,6 +42,24 @@ export default function Tasks() {
     inProgress: taskItems.filter((task) => ['In Progress', 'In Review', 'Testing', 'Blocked'].includes(task.status)),
     completed: taskItems.filter((task) => ['Done', 'Completed'].includes(task.status)),
   }), [taskItems]);
+
+  const visibleTasks = useMemo(() => {
+    if (taskView === 'completed') return grouped.completed;
+    return taskItems;
+  }, [taskItems, taskView, grouped.completed]);
+
+  const teamPerformance = useMemo(() => {
+    const byEmployee = new Map();
+    taskItems.forEach((task) => {
+      const key = task.employeeName || 'Unassigned';
+      const current = byEmployee.get(key) || { name: key, employeeId: task.employeeId, department: task.department, total: 0, completed: 0, inProgress: 0 };
+      current.total += 1;
+      if (['Done', 'Completed'].includes(task.status)) current.completed += 1;
+      if (['In Progress', 'In Review', 'Testing'].includes(task.status)) current.inProgress += 1;
+      byEmployee.set(key, current);
+    });
+    return [...byEmployee.values()].sort((a, b) => b.total - a.total);
+  }, [taskItems]);
 
   async function updateTaskStatus(task, status) {
     setTaskStatus(`Updating ${task.title}...`);
@@ -90,6 +111,40 @@ export default function Tasks() {
     }
   }
 
+  async function uploadAttachments(taskId, files) {
+    if (!files.length) return;
+    setTaskStatus('Uploading attachments...');
+    try {
+      await Promise.all(files.map(async (file) => {
+        const uploaded = await documentsApi.uploadTaskAttachment(taskId, file);
+        await tasksApi.addComment(taskId, `Attachment uploaded: ${uploaded.fileName || file.name}`);
+      }));
+      setAttachments([]);
+      setDetailCache((current) => ({ ...current, [taskId]: undefined }));
+      await loadTaskDetails(taskId);
+      setTaskStatus('Attachment(s) uploaded successfully.');
+    } catch (err) {
+      setTaskStatus(err.message);
+    }
+  }
+
+  async function approveCompletedTask(task) {
+    setTaskStatus(`Reviewing ${task.title}...`);
+    try {
+      await tasksApi.update(task.id, { status: 'DONE' });
+      await tasksApi.addComment(task.id, 'Work reviewed and approved.');
+      refresh();
+      setTaskStatus('Completed work approved.');
+    } catch (err) {
+      setTaskStatus(err.message);
+    }
+  }
+
+  function showTeamPerformance() {
+    setTaskView('all');
+    performanceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <div className="page-stack">
       <div className="page-header">
@@ -100,7 +155,7 @@ export default function Tasks() {
       {loading && <LoadingIndicator message="Loading tasks from backend..." />}
       {taskStatus && <p className="alert-info" role="status">{taskStatus}</p>}
 
-      <Can roles={['admin', 'manager']}>
+      <Can roles={['admin', 'manager', 'team_lead']}>
         <Card className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center" interactive={false}>
           <div>
             <h2 className="section-title">Task assignment controls</h2>
@@ -108,8 +163,10 @@ export default function Tasks() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => setAssignOpen(true)}><Plus className="h-4 w-4" /> Assign Task</Button>
-            <Button variant="secondary"><UserCheck className="h-4 w-4" /> Review Completed</Button>
-            <Button variant="blue"><TrendingUp className="h-4 w-4" /> Team Performance</Button>
+            <Button variant="secondary" onClick={() => setTaskView((current) => (current === 'completed' ? 'all' : 'completed'))}>
+              <UserCheck className="h-4 w-4" /> {taskView === 'completed' ? 'Show All Tasks' : 'Review Completed'}
+            </Button>
+            <Button variant="blue" onClick={showTeamPerformance}><TrendingUp className="h-4 w-4" /> Team Performance</Button>
           </div>
         </Card>
       </Can>
@@ -130,8 +187,57 @@ export default function Tasks() {
         <Card className="p-5" interactive={false}><p className="text-sm text-ink-secondary">Completed</p><p className="mt-2 text-3xl font-extrabold">{grouped.completed.length}</p></Card>
       </section>
 
+      {canReview && (
+        <section ref={performanceRef}>
+          <Card className="overflow-hidden" interactive={false}>
+            <div className="border-b border-line p-5">
+              <h2 className="section-title">Team Performance</h2>
+              <p className="mt-1 text-sm text-ink-secondary">Task progress grouped by team member.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-surface-muted text-xs uppercase text-ink-secondary">
+                  <tr>{['Employee', 'Employee ID', 'Department', 'Total Tasks', 'In Progress', 'Completed', 'Progress'].map((head) => <th key={head} className="px-5 py-4">{head}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {teamPerformance.length === 0 && (
+                    <tr><td colSpan={7} className="px-5 py-8 text-center text-ink-secondary">No team task data available.</td></tr>
+                  )}
+                  {teamPerformance.map((member) => {
+                    const progress = member.total ? Math.round((member.completed / member.total) * 100) : 0;
+                    return (
+                      <tr key={member.name} className="border-t border-line">
+                        <td className="px-5 py-4 font-bold text-ink-primary">{member.name}</td>
+                        <td className="px-5 py-4 text-ink-secondary">{member.employeeId || '-'}</td>
+                        <td className="px-5 py-4 text-ink-secondary">{member.department || '-'}</td>
+                        <td className="px-5 py-4 text-ink-secondary">{member.total}</td>
+                        <td className="px-5 py-4 text-ink-secondary">{member.inProgress}</td>
+                        <td className="px-5 py-4 text-ink-secondary">{member.completed}</td>
+                        <td className="px-5 py-4"><div className="min-w-28"><ProgressBar value={progress} /></div></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </section>
+      )}
+
+      {taskView === 'completed' && (
+        <Card className="p-5" interactive={false}>
+          <h2 className="section-title">Completed Task Submissions</h2>
+          <p className="mt-1 text-sm text-ink-secondary">Review completed work submitted by team members.</p>
+        </Card>
+      )}
+
       <section className="card-grid lg:grid-cols-2">
-        {taskItems.map((task) => {
+        {visibleTasks.length === 0 && !loading && (
+          <Card className="p-5 lg:col-span-2" interactive={false}>
+            <p className="text-sm text-ink-secondary">{taskView === 'completed' ? 'No completed tasks to review.' : 'No tasks assigned yet.'}</p>
+          </Card>
+        )}
+        {visibleTasks.map((task) => {
           const details = detailCache[task.id];
           const isExpanded = expandedId === task.id;
           return (
@@ -158,9 +264,16 @@ export default function Tasks() {
                 <ProgressBar value={task.progress} />
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button onClick={() => updateTaskStatus(task, 'IN_PROGRESS')}><Play className="h-4 w-4" /> Start Task</Button>
-                <Button variant="secondary" onClick={() => updateTaskStatus(task, 'IN_REVIEW')}><RefreshCw className="h-4 w-4" /> Update Progress</Button>
-                <Button variant="secondary" onClick={() => updateTaskStatus(task, 'DONE')}><Check className="h-4 w-4" /> Mark Completed</Button>
+                {activeRole.key === 'employee' && (
+                  <>
+                    <Button onClick={() => updateTaskStatus(task, 'IN_PROGRESS')}><Play className="h-4 w-4" /> Start Task</Button>
+                    <Button variant="secondary" onClick={() => updateTaskStatus(task, 'IN_REVIEW')}><RefreshCw className="h-4 w-4" /> Update Progress</Button>
+                    <Button variant="secondary" onClick={() => updateTaskStatus(task, 'DONE')}><Check className="h-4 w-4" /> Mark Completed</Button>
+                  </>
+                )}
+                {canReview && ['Done', 'Completed', 'In Review'].includes(task.status) && (
+                  <Button variant="secondary" onClick={() => approveCompletedTask(task)}><UserCheck className="h-4 w-4" /> Approve Work</Button>
+                )}
                 <Button variant="secondary" onClick={() => toggleExpanded(task)}><MessageSquare className="h-4 w-4" /> {isExpanded ? 'Hide Details' : 'Details'}</Button>
               </div>
 
@@ -199,7 +312,12 @@ export default function Tasks() {
                   <label className="block">
                     <span className="text-sm font-semibold text-ink-primary">Attachments</span>
                     <input type="file" multiple className="field-control mt-2" onChange={(event) => setAttachments(Array.from(event.target.files || []))} />
-                    {attachments.length > 0 && <p className="mt-1 text-xs text-ink-secondary">{attachments.length} file(s) selected — task attachment API pending backend support.</p>}
+                    {attachments.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <p className="text-xs text-ink-secondary">{attachments.length} file(s) selected</p>
+                        <Button type="button" variant="secondary" onClick={() => uploadAttachments(task.id, attachments)}>Upload</Button>
+                      </div>
+                    )}
                   </label>
                 </div>
               )}

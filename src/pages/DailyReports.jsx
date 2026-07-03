@@ -5,8 +5,7 @@ import Card from '../components/ui/Card';
 import PageHeader from '../components/ui/PageHeader';
 import { EmptyState, LoadingIndicator } from '../components/ui/Skeleton';
 import useApiData from '../hooks/useApiData';
-import { employeesApi } from '../lib/api';
-import { listDailyReportHistory, loadDailyReport, saveDailyReport, todayKey } from '../lib/dailyReportStorage';
+import { dailyReportsApi, employeesApi } from '../lib/api';
 
 const emptyForm = {
   completedWork: '',
@@ -18,41 +17,64 @@ const emptyForm = {
 
 export default function DailyReports() {
   const { data: profile, loading } = useApiData(() => employeesApi.me(), null, []);
+  const { data: apiHistory, loading: historyLoading, refresh } = useApiData(() => dailyReportsApi.my(), [], []);
   const [form, setForm] = useState(emptyForm);
   const [statusMessage, setStatusMessage] = useState('');
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    if (!profile?.userId && !profile?.id) return;
-    const userKey = profile.userId || profile.id;
-    const saved = loadDailyReport(userKey);
-    if (saved) setForm(saved);
-    setHistory(listDailyReportHistory(userKey));
-  }, [profile?.userId, profile?.id]);
+    setHistory(apiHistory.map((entry) => ({
+      date: entry.reportDate,
+      completedWork: entry.completedWork,
+      status: String(entry.status || 'draft').toLowerCase(),
+    })));
+    const today = new Date().toISOString().slice(0, 10);
+    const savedToday = apiHistory.find((entry) => entry.reportDate === today);
+    if (savedToday) {
+      setForm({
+        completedWork: savedToday.completedWork || '',
+        pendingWork: savedToday.pendingWork || '',
+        tomorrowPlan: savedToday.tomorrowPlan || '',
+        blockers: savedToday.blockers || '',
+        status: String(savedToday.status || 'submitted').toLowerCase(),
+      });
+    }
+  }, [apiHistory]);
 
   const canEdit = form.status !== 'submitted';
-  const userKey = profile?.userId || profile?.id;
 
-  function persist(nextForm) {
-    if (!userKey) return;
-    saveDailyReport(userKey, nextForm);
-    setHistory(listDailyReportHistory(userKey));
-  }
-
-  function saveDraft() {
+  async function saveDraft() {
     const next = { ...form, status: 'draft' };
     setForm(next);
-    persist(next);
-    setStatusMessage('Draft saved locally.');
+    try {
+      await dailyReportsApi.submitMine({
+        ...next,
+        status: 'DRAFT',
+        reportDate: new Date().toISOString().slice(0, 10),
+      });
+      refresh();
+      setStatusMessage('Draft saved.');
+    } catch (err) {
+      setStatusMessage(err.message);
+    }
   }
 
-  function submitReport(event) {
+  async function submitReport(event) {
     event.preventDefault();
     if (!canEdit) return;
     const next = { ...form, status: 'submitted', submittedAt: new Date().toISOString() };
-    setForm(next);
-    persist(next);
-    setStatusMessage('Daily work report submitted.');
+    try {
+      await dailyReportsApi.submitMine({
+        ...next,
+        status: 'SUBMITTED',
+        reportDate: new Date().toISOString().slice(0, 10),
+      });
+      setForm(next);
+      refresh();
+      setStatusMessage('Daily work report submitted.');
+    } catch (err) {
+      setStatusMessage(err.message);
+    }
   }
 
   const todayLabel = useMemo(() => new Intl.DateTimeFormat('en-GB', { dateStyle: 'full' }).format(new Date()), []);
@@ -65,7 +87,7 @@ export default function DailyReports() {
         description={`Submit your completed work, pending items, tomorrow's plan, and blockers for ${todayLabel}.`}
       />
 
-      {loading && <LoadingIndicator message="Loading profile..." />}
+      {(loading || historyLoading) && <LoadingIndicator message="Loading daily reports..." />}
       {statusMessage && <p className="alert-success" role="status">{statusMessage}</p>}
 
       <Card className="p-5" interactive={false}>
@@ -96,7 +118,7 @@ export default function DailyReports() {
             </Button>
           </div>
           {!canEdit && (
-            <p className="text-sm text-ink-secondary">Report submitted for {todayKey()}. Editing is locked until backend submission APIs are available.</p>
+            <p className="text-sm text-ink-secondary">Report submitted for today. Editing is locked after submission.</p>
           )}
         </form>
       </Card>

@@ -100,7 +100,17 @@ export default function TeamDirectory() {
     event.preventDefault();
     setFormStatus('Updating employee...');
     try {
-      await employeesApi.update(editingEmployee.id, editingEmployee.raw || {});
+      const raw = editingEmployee.raw || {};
+      const [firstName = '', ...rest] = String(editingEmployee.name || '').trim().split(' ');
+      const lastName = rest.join(' ');
+      const selectedDepartment = departments.find((department) => department.name === editingEmployee.department);
+      await employeesApi.update(editingEmployee.id, {
+        ...raw,
+        firstName: firstName || raw.firstName,
+        lastName: lastName || raw.lastName,
+        departmentId: selectedDepartment?.id || raw.departmentId,
+        status: editingEmployee.status === 'Available' ? 'ACTIVE' : editingEmployee.status?.toUpperCase?.() || raw.status,
+      });
       setFormStatus('Employee updated successfully.');
       setEditingEmployee(null);
       refresh();
@@ -247,7 +257,13 @@ export default function TeamDirectory() {
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-ink-primary">Department</span>
-                <input className="field-control mt-2" value={editingEmployee.department} onChange={(event) => setEditingEmployee((current) => ({ ...current, department: event.target.value }))} />
+                <select className="select-control mt-2" value={editingEmployee.raw?.departmentId || departments.find((department) => department.name === editingEmployee.department)?.id || ''} onChange={(event) => {
+                  const department = departments.find((item) => item.id === event.target.value);
+                  setEditingEmployee((current) => ({ ...current, department: department?.name || current.department, raw: { ...current.raw, departmentId: event.target.value } }));
+                }}>
+                  <option value="">Select department</option>
+                  {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+                </select>
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-ink-primary">Role</span>

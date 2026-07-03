@@ -22,6 +22,8 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     List<AttendanceRecord> findByDateAndDeletedFalse(LocalDate date);
 
+    Page<AttendanceRecord> findAllByDeletedFalse(Pageable pageable);
+
     Page<AttendanceRecord> findByEmployeeIdAndDeletedFalse(UUID employeeId, Pageable pageable);
 
     @Query("""

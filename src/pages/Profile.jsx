@@ -72,8 +72,7 @@ export default function Profile() {
     if (!apiEmployee?.raw?.id && !apiEmployee?.id) return;
     setProfileStatus('Updating profile...');
     try {
-      const employeeId = apiEmployee.raw?.id || apiEmployee.id;
-      await employeesApi.update(employeeId, {
+      await employeesApi.updateMe({
         ...apiEmployee.raw,
         phoneNumber: draftProfile.phone,
         personalEmail: draftProfile.personalEmail,

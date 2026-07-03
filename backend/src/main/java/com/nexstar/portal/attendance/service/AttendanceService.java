@@ -212,11 +212,26 @@ public class AttendanceService {
         return PageResponse.of(records.map(this::toResponse));
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<AttendanceRecordResponse> getAllAttendance(int page, int size) {
+        Page<AttendanceRecord> records = recordRepository.findAllByDeletedFalse(
+                PageRequest.of(page, size, Sort.by("date").descending()));
+        return PageResponse.of(records.map(this::toResponse));
+    }
+
     // ── Employee Attendance (HR/Manager) ──────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<AttendanceRecordResponse> getEmployeeAttendance(
-            UUID employeeId, LocalDate from, LocalDate to) {
+            UUID employeeId, LocalDate from, LocalDate to, UserPrincipal currentUser) {
+        Employee requested = employeeRepository.findByIdAndDeletedFalse(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+        if (currentUser.getAuthorities().stream().anyMatch(a -> "ROLE_MANAGER".equals(a.getAuthority()))) {
+            Employee manager = getEmployeeByUser(currentUser.getId());
+            if (requested.getReportingManager() == null || !requested.getReportingManager().getId().equals(manager.getId())) {
+                throw new BusinessException("You can only view attendance for employees in your reporting scope.", HttpStatus.FORBIDDEN);
+            }
+        }
         return recordRepository.findByEmployeeAndDateRange(employeeId, from, to)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }

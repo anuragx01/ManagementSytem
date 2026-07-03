@@ -201,6 +201,26 @@ public class EmployeeService {
     }
 
     @Transactional
+    public EmployeeResponse updateOwnProfile(UUID userId, CreateEmployeeRequest request) {
+        Employee employee = employeeRepository.findByUserIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee profile not found for user"));
+
+        User user = employee.getUser();
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+            employee.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getPersonalEmail() != null) employee.setPersonalEmail(request.getPersonalEmail());
+        if (request.getAddress() != null) employee.setAddress(request.getAddress());
+        if (request.getCity() != null) employee.setCity(request.getCity());
+        if (request.getState() != null) employee.setState(request.getState());
+        if (request.getCountry() != null) employee.setCountry(request.getCountry());
+        if (request.getPostalCode() != null) employee.setPostalCode(request.getPostalCode());
+        userRepository.save(user);
+        return toResponse(employeeRepository.save(employee));
+    }
+
+    @Transactional
     public void terminateEmployee(UUID id, String reason) {
         Employee employee = employeeRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));

@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -113,6 +114,14 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    public TaskResponse getTask(UUID id, UserPrincipal currentUser) {
+        Task task = taskRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+        assertCanViewTask(task, currentUser);
+        return toTaskResponse(task);
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<TaskResponse> searchTasks(TaskFilterRequest filter) {
         Sort sort = filter.getSortDir().equalsIgnoreCase("asc")
                 ? Sort.by(filter.getSortBy()).ascending()
@@ -124,10 +133,30 @@ public class TaskService {
         return PageResponse.of(page.map(this::toTaskResponse));
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<TaskResponse> searchTasks(TaskFilterRequest filter, UserPrincipal currentUser) {
+        Employee currentEmployee = employeeRepository.findByUserIdAndDeletedFalse(currentUser.getId()).orElse(null);
+        if (hasRole(currentUser, "EMPLOYEE") && !hasAnyRole(currentUser, "SUPER_ADMIN", "HR", "MANAGER", "TEAM_LEAD")) {
+            if (currentEmployee == null) {
+                filter.setAssigneeId(UUID.randomUUID());
+            } else {
+                filter.setAssigneeId(currentEmployee.getId());
+            }
+        }
+
+        Sort sort = filter.getSortDir().equalsIgnoreCase("asc")
+                ? Sort.by(filter.getSortBy()).ascending()
+                : Sort.by(filter.getSortBy()).descending();
+        PageRequest pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+        Page<Task> page = taskRepository.findAll(buildSpecification(filter), pageable);
+        return PageResponse.of(page.map(this::toTaskResponse));
+    }
+
     @Transactional
     public TaskResponse updateTask(UUID id, UpdateTaskRequest request, UserPrincipal currentUser) {
         Task task = taskRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+        assertCanUpdateTask(task, request, currentUser);
 
         User actor = userRepository.findByIdAndDeletedFalse(currentUser.getId()).orElse(null);
 
@@ -260,6 +289,14 @@ public class TaskService {
                 .stream().map(this::toCommentDto).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<TaskCommentDto> getComments(UUID taskId, UserPrincipal currentUser) {
+        Task task = taskRepository.findByIdAndDeletedFalse(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", taskId));
+        assertCanViewTask(task, currentUser);
+        return getComments(taskId);
+    }
+
     @Transactional
     public void deleteComment(UUID commentId, UserPrincipal currentUser) {
         TaskComment comment = taskCommentRepository.findByIdAndDeletedFalse(commentId)
@@ -356,6 +393,49 @@ public class TaskService {
                 .detail(detail)
                 .build();
         taskActivityRepository.save(activity);
+    }
+
+    private void assertCanViewTask(Task task, UserPrincipal currentUser) {
+        if (hasAnyRole(currentUser, "SUPER_ADMIN", "HR")) return;
+        Employee employee = employeeRepository.findByUserIdAndDeletedFalse(currentUser.getId()).orElse(null);
+        if (employee == null) throw new BusinessException("Employee profile not found.", HttpStatus.FORBIDDEN);
+        if (task.getAssignee() != null && task.getAssignee().getId().equals(employee.getId())) return;
+        if (task.getReporter() != null && task.getReporter().getId().equals(employee.getId())) return;
+        if (hasAnyRole(currentUser, "MANAGER", "TEAM_LEAD")
+                && task.getAssignee() != null
+                && task.getAssignee().getReportingManager() != null
+                && task.getAssignee().getReportingManager().getId().equals(employee.getId())) {
+            return;
+        }
+        throw new BusinessException("You are not allowed to access this task.", HttpStatus.FORBIDDEN);
+    }
+
+    private void assertCanUpdateTask(Task task, UpdateTaskRequest request, UserPrincipal currentUser) {
+        if (hasAnyRole(currentUser, "SUPER_ADMIN", "MANAGER", "TEAM_LEAD")) {
+            assertCanViewTask(task, currentUser);
+            return;
+        }
+        Employee employee = employeeRepository.findByUserIdAndDeletedFalse(currentUser.getId()).orElse(null);
+        if (employee != null && task.getAssignee() != null && task.getAssignee().getId().equals(employee.getId())
+                && request.getStatus() != null
+                && request.getTitle() == null
+                && request.getDescription() == null
+                && request.getAssigneeId() == null
+                && request.getReporterId() == null) {
+            return;
+        }
+        throw new BusinessException("You are not allowed to update this task.", HttpStatus.FORBIDDEN);
+    }
+
+    private boolean hasRole(UserPrincipal user, String role) {
+        return user.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(("ROLE_" + role)::equals);
+    }
+
+    private boolean hasAnyRole(UserPrincipal user, String... roles) {
+        for (String role : roles) {
+            if (hasRole(user, role)) return true;
+        }
+        return false;
     }
 
     private Specification<Task> buildSpecification(TaskFilterRequest filter) {
