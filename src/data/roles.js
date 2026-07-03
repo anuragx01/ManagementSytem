@@ -8,7 +8,7 @@ export const roles = {
     title: 'Organization administration',
     routes: [
       'dashboard', 'employees', 'departments', 'attendance', 'leave',
-      'projects', 'tasks', 'reports', 'payroll', 'adminConsole', 'settings', 'profile',
+      'projects', 'tasks', 'reports', 'payroll', 'settings', 'profile',
     ],
   },
   hr: {

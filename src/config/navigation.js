@@ -78,7 +78,6 @@ export const navigationByRole = {
     item('Tasks', routePaths.tasks, 'tasks', ClipboardList),
     item('Reports', routePaths.reports, 'reports', FileBarChart),
     item('Payroll', routePaths.payroll, 'payroll', DollarSign),
-    item('Admin Console', routePaths.adminConsole, 'adminConsole', Settings),
     item('Settings', routePaths.settings, 'settings', Settings),
   ],
   manager: [
