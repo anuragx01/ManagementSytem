@@ -5,6 +5,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { LoadingIndicator } from '../../components/ui/Skeleton';
 import useApiData from '../../hooks/useApiData';
 import { organizationApi, pageContent, projectsApi, tasksApi } from '../../lib/api';
+import { buildWelcomeTitle } from '../../lib/greeting';
 import { mapTask } from '../../lib/mappers';
 
 export default function TeamLeadDashboard() {
@@ -27,7 +28,7 @@ export default function TeamLeadDashboard() {
     <div className="page-stack">
       <PageHeader
         kicker="Team Lead"
-        title="Delivery overview"
+        title={buildWelcomeTitle('Team Lead')}
         description="Focus on team tasks, active projects, and execution status."
       />
 

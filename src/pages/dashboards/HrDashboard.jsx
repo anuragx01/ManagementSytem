@@ -4,6 +4,7 @@ import Card from '../../components/ui/Card';
 import PageHeader from '../../components/ui/PageHeader';
 import { LoadingIndicator } from '../../components/ui/Skeleton';
 import useApiData from '../../hooks/useApiData';
+import { buildWelcomeTitle } from '../../lib/greeting';
 import {
   attendanceApi,
   employeesApi,
@@ -58,7 +59,7 @@ export default function HrDashboard() {
     <div className="page-stack">
       <PageHeader
         kicker="HR Operations"
-        title="People overview"
+        title={buildWelcomeTitle('HR')}
         description="Monitor workforce attendance, leave approvals, departments, and HR notifications."
       />
 

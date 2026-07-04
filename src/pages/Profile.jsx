@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, KeyRound, Mail, MapPin, Pencil, Phone, ShieldCheck } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -25,7 +25,8 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [profileStatus, setProfileStatus] = useState('');
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [previewAvatar, setPreviewAvatar] = useState('');
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [draftProfile, setDraftProfile] = useState({
     phone: '',
     personalEmail: '',
@@ -45,14 +46,18 @@ export default function Profile() {
         department: apiEmployee.department,
         email: apiEmployee.email || defaultProfile.email,
         phone: apiEmployee.phone || defaultProfile.phone,
-        avatar: apiEmployee.avatar,
+        avatar: previewAvatar || apiEmployee.avatar,
         employeeId: apiEmployee.raw?.employeeId || defaultProfile.employeeId,
         location: [apiEmployee.raw?.city, apiEmployee.raw?.state].filter(Boolean).join(', ') || defaultProfile.location,
         manager: apiEmployee.raw?.reportingManagerName || defaultProfile.manager,
         joined: apiEmployee.raw?.dateOfJoining || defaultProfile.joined,
         raw: apiEmployee.raw,
       }
-    : defaultProfile;
+    : { ...defaultProfile, avatar: previewAvatar || defaultProfile.avatar };
+
+  useEffect(() => () => {
+    if (previewAvatar) URL.revokeObjectURL(previewAvatar);
+  }, [previewAvatar]);
 
   const displayProfile = useMemo(() => ({ ...profile, ...(editing ? draftProfile : {}) }), [profile, editing, draftProfile]);
 
@@ -90,23 +95,41 @@ export default function Profile() {
   async function uploadProfilePicture(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (previewAvatar) URL.revokeObjectURL(previewAvatar);
+    setPreviewAvatar(URL.createObjectURL(file));
     setProfileStatus('Uploading profile picture...');
     try {
       await documentsApi.uploadProfilePicture(file);
       refresh();
       setProfileStatus('Profile picture updated.');
     } catch (err) {
+      setPreviewAvatar('');
       setProfileStatus(err.message);
     }
   }
 
   async function changePassword() {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setProfileStatus('Please complete all password fields.');
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setProfileStatus('New password must be at least 6 characters.');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setProfileStatus('New password and confirmation do not match.');
+      return;
+    }
     setProfileStatus('Updating password...');
     try {
-      await authApi.changePassword(passwordForm);
+      await authApi.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
       setProfileStatus('Password changed successfully.');
       setPasswordOpen(false);
-      setPasswordForm({ currentPassword: '', newPassword: '' });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
       setProfileStatus(err.message);
     }
@@ -115,7 +138,7 @@ export default function Profile() {
   return (
     <div className="page-stack">
       <div className="page-header">
-        <p className="page-kicker">Employee Profile</p>
+        <p className="page-kicker">My Profile</p>
         <h1 className="page-title">Profile details</h1>
       </div>
       {error && <p className="alert-warning" role="alert">{error}</p>}
@@ -209,6 +232,10 @@ export default function Profile() {
           <label className="block">
             <span className="text-sm font-semibold text-ink-primary">New Password</span>
             <input type="password" className="field-control mt-2" value={passwordForm.newPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-ink-primary">Confirm New Password</span>
+            <input type="password" className="field-control mt-2" value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))} />
           </label>
         </div>
       </Modal>

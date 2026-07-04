@@ -5,6 +5,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { LoadingIndicator } from '../../components/ui/Skeleton';
 import useApiData from '../../hooks/useApiData';
 import { employeesApi, leaveApi, pageContent, tasksApi } from '../../lib/api';
+import { buildWelcomeTitle } from '../../lib/greeting';
 import { mapTask } from '../../lib/mappers';
 
 export default function ManagerDashboard() {
@@ -33,7 +34,7 @@ export default function ManagerDashboard() {
     <div className="page-stack">
       <PageHeader
         kicker="Manager"
-        title="Team overview"
+        title={buildWelcomeTitle('Manager')}
         description="Review your team, pending leave approvals, and task workload."
       />
 

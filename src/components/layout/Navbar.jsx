@@ -5,26 +5,32 @@ import { useAuth } from '../../context/AuthContext';
 import { useRole } from '../../context/RoleContext';
 import { roleOptions } from '../../data/roles';
 import useApiData from '../../hooks/useApiData';
-import { notificationsApi } from '../../lib/api';
+import { employeesApi, notificationsApi } from '../../lib/api';
+import { mapEmployee } from '../../lib/mappers';
 import LogoMark from '../ui/LogoMark';
 
 const defaultAvatar = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80';
 
 export default function Navbar() {
-  const { authUser, isAuthenticated } = useAuth();
+  const { authUser } = useAuth();
   const { activeRole, activeRoleKey, previewRoleKey, isBackendRole, setActiveRoleKey } = useRole();
   const { data: unreadCount } = useApiData(
     () => notificationsApi.unreadCount(),
     0,
     [],
   );
+  const { data: profile } = useApiData(
+    async () => mapEmployee(await employeesApi.me()),
+    null,
+    [],
+  );
 
   const displayUser = authUser
     ? {
-        name: `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email,
-        avatar: authUser.profilePictureUrl || defaultAvatar,
+        name: profile?.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email,
+        avatar: profile?.avatar || authUser.profilePictureUrl || defaultAvatar,
       }
-    : { name: 'Guest', avatar: defaultAvatar };
+    : { name: activeRole.label, avatar: defaultAvatar };
 
   const badgeCount = typeof unreadCount === 'number' ? unreadCount : unreadCount?.count ?? 0;
 
@@ -70,13 +76,17 @@ export default function Navbar() {
               </span>
             )}
           </Link>
-          <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-white p-2 shadow-sm">
-            <img src={displayUser.avatar} alt={displayUser.name} className="h-10 w-10 rounded-xl object-cover" />
-            <div className="hidden pr-2 sm:block">
-              <p className="max-w-36 truncate text-sm font-bold text-ink-primary">{displayUser.name}</p>
-              <p className="text-xs text-ink-secondary">{isAuthenticated ? `${activeRole.label} role` : `${activeRole.label} preview`}</p>
+          <Link
+            to="/profile"
+            className="flex h-14 w-14 shrink-0 items-center gap-3 rounded-2xl border border-line bg-white p-2 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20 sm:w-56"
+            aria-label="My Profile"
+          >
+            <img src={displayUser.avatar} alt={displayUser.name} className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+            <div className="hidden min-w-0 flex-1 pr-2 sm:block">
+              <p className="truncate text-sm font-bold text-ink-primary">{displayUser.name}</p>
+              <p className="truncate text-xs text-ink-secondary">{activeRole.label}</p>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>
