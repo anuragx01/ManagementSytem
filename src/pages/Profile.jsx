@@ -77,7 +77,7 @@ export default function Profile() {
     if (!apiEmployee?.raw?.id && !apiEmployee?.id) return;
     setProfileStatus('Updating profile...');
     try {
-      await employeesApi.updateMe({
+     await employeesApi.updateMe(profile.id, {
         ...apiEmployee.raw,
         phoneNumber: draftProfile.phone,
         personalEmail: draftProfile.personalEmail,
