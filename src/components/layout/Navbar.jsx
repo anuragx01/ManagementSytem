@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { Bell, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRole } from '../../context/RoleContext';
-import { roleOptions } from '../../data/roles';
-import useApiData from '../../hooks/useApiData';
-import { employeesApi, notificationsApi } from '../../lib/api';
+import { useGetMeQuery } from '../../services/employeeApi';
+import { useGetUnreadCountQuery } from '../../services/notificationApi';
 import { mapEmployee } from '../../lib/mappers';
 import LogoMark from '../ui/LogoMark';
 
@@ -13,17 +12,10 @@ const defaultAvatar = 'https://images.unsplash.com/photo-1500648767791-00dcc994a
 
 export default function Navbar() {
   const { authUser } = useAuth();
-  const { activeRole, activeRoleKey, previewRoleKey, isBackendRole, setActiveRoleKey } = useRole();
-  const { data: unreadCount } = useApiData(
-    () => notificationsApi.unreadCount(),
-    0,
-    [],
-  );
-  const { data: profile } = useApiData(
-    async () => mapEmployee(await employeesApi.me()),
-    null,
-    [],
-  );
+  const { activeRole } = useRole();
+  const { data: unreadCount } = useGetUnreadCountQuery(undefined, { skip: !authUser });
+  const { data: apiProfile } = useGetMeQuery(undefined, { skip: !authUser });
+  const profile = apiProfile ? mapEmployee(apiProfile) : null;
 
   const displayUser = authUser
     ? {
@@ -57,17 +49,6 @@ export default function Navbar() {
         </div>
 
         <div className="flex min-w-0 items-center justify-end gap-2">
-          <select
-            className="select-control hidden max-w-52 md:block"
-            value={isBackendRole ? activeRoleKey : previewRoleKey}
-            onChange={(event) => setActiveRoleKey(event.target.value)}
-            disabled={isBackendRole}
-            aria-label="Select role"
-          >
-            {roleOptions.map((role) => (
-              <option key={role.key} value={role.key}>{role.label}</option>
-            ))}
-          </select>
           <Link to="/notifications" className="icon-button relative" aria-label="Notifications">
             <Bell className="h-5 w-5 text-ink-secondary" />
             {badgeCount > 0 && (
@@ -92,3 +73,5 @@ export default function Navbar() {
     </header>
   );
 }
+
+

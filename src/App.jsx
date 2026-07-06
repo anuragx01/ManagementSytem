@@ -30,6 +30,7 @@ export default function App() {
       <RoleProvider>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<ProtectedRoute routeKey="dashboard"><Dashboard /></ProtectedRoute>} />
             <Route path="/attendance" element={<ProtectedRoute routeKey="attendance"><Attendance /></ProtectedRoute>} />
@@ -61,3 +62,5 @@ export default function App() {
     </AuthProvider>
   );
 }
+
+

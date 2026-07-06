@@ -16,7 +16,7 @@ import {
   tasksApi,
 } from '../../lib/api';
 import { mapNotification, mapTask } from '../../lib/mappers';
-import { announcements as fallbackAnnouncements } from '../../data/mockData';
+
 
 function formatTime(value) {
   if (!value) return '—';
@@ -46,16 +46,11 @@ export default function EmployeeDashboard() {
 
   const pendingTasks = tasks.filter((task) => !['DONE', 'Completed'].includes(task.status));
   const completedTasks = tasks.filter((task) => ['DONE', 'Completed'].includes(task.status));
-  const companyAnnouncements = useMemo(() => {
-    const fromApi = (notifications || []).filter((note) => /announcement|system/i.test(note.type || note.raw?.type || ''));
-    if (fromApi.length > 0) return fromApi;
-    return fallbackAnnouncements.map((message, index) => ({
-      id: `announcement-${index}`,
-      title: 'Company Announcement',
-      message,
-      time: 'Today',
-    }));
-  }, [notifications]);
+ const companyAnnouncements = useMemo(() => {
+  return (notifications || []).filter((note) =>
+    /announcement|system/i.test(note.type || note.raw?.type || '')
+  );
+}, [notifications]);
 
   async function handleClockIn() {
     await attendanceApi.clockIn({});
@@ -139,3 +134,4 @@ export default function EmployeeDashboard() {
     </div>
   );
 }
+

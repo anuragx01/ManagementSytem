@@ -1,28 +1,25 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useMemo } from 'react';
+import { useSelector } from 'react-redux';
+import { selectAuthUser, selectIsAuthenticated } from '../features/auth/authSlice';
 import { frontendRoleFromBackend, roles } from '../data/roles';
 
 const RoleContext = createContext(null);
 
 export function RoleProvider({ children }) {
-  const { authUser, isAuthenticated } = useAuth();
-  const [activeRoleKey, setActiveRoleKey] = useState(() => localStorage.getItem('nexstar-role') || 'admin');
-  const backendRoleKey = frontendRoleFromBackend(authUser?.roles || []);
-  const effectiveRoleKey = isAuthenticated ? backendRoleKey : activeRoleKey;
+  const authUser = useSelector(selectAuthUser);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const effectiveRoleKey = frontendRoleFromBackend(authUser?.roles || []);
   const activeRole = roles[effectiveRoleKey] || roles.employee;
 
   const value = useMemo(
     () => ({
       activeRole,
       activeRoleKey: effectiveRoleKey,
-      previewRoleKey: activeRoleKey,
+      previewRoleKey: null,
       isBackendRole: isAuthenticated,
-      setActiveRoleKey: (roleKey) => {
-        localStorage.setItem('nexstar-role', roleKey);
-        setActiveRoleKey(roleKey);
-      },
+      setActiveRoleKey: () => {},
     }),
-    [activeRole, activeRoleKey, effectiveRoleKey, isAuthenticated],
+    [activeRole, effectiveRoleKey, isAuthenticated],
   );
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
@@ -35,3 +32,4 @@ export function useRole() {
   }
   return context;
 }
+

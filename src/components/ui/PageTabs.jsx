@@ -27,3 +27,4 @@ export default function PageTabs({ tabs, activeTab, onChange }) {
     </div>
   );
 }
+

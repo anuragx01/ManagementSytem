@@ -1,11 +1,17 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { canAccess } from '../data/roles';
 
 export function ProtectedRoute({ routeKey, children }) {
+  const { isAuthenticated } = useAuth();
   const { activeRole } = useRole();
   const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
 
   if (!canAccess(activeRole.key, routeKey)) {
     return <Navigate to="/dashboard" replace state={{ from: location.pathname }} />;
@@ -22,3 +28,5 @@ export function Can({ roles: allowedRoles, children, fallback = null }) {
   const { activeRole } = useRole();
   return allowedRoles.includes(activeRole.key) ? children : fallback;
 }
+
+

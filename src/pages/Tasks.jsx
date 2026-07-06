@@ -8,8 +8,10 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import ProgressBar from '../components/ui/ProgressBar';
 import { LoadingIndicator } from '../components/ui/Skeleton';
-import useApiData from '../hooks/useApiData';
-import { documentsApi, employeesApi, organizationApi, pageContent, tasksApi } from '../lib/api';
+import { documentsApi, pageContent, tasksApi } from '../lib/api';
+import { useGetMeQuery } from '../services/employeeApi';
+import { useGetCompanyQuery } from '../services/organizationApi';
+import { useAddTaskCommentMutation, useSearchTasksQuery, useUpdateTaskMutation } from '../services/taskApi';
 import { mapTask } from '../lib/mappers';
 
 export default function Tasks() {
@@ -24,18 +26,13 @@ export default function Tasks() {
   const [detailCache, setDetailCache] = useState({});
   const canReview = ['admin', 'manager', 'team_lead'].includes(activeRole.key);
 
-  const { data: profile } = useApiData(() => employeesApi.me(), null, []);
-  const { data: company } = useApiData(() => organizationApi.company(), null, []);
-  const { data: taskItems, loading, error, refresh } = useApiData(
-    async () => {
-      const params = activeRole.key === 'employee' && profile?.id
-        ? { assigneeId: profile.id, size: 50 }
-        : { size: 50 };
-      return pageContent(await tasksApi.search(params)).map(mapTask);
-    },
-    [],
-    [profile?.id, activeRole.key],
-  );
+  const { data: profile } = useGetMeQuery();
+  const { data: company } = useGetCompanyQuery();
+  const taskParams = activeRole.key === 'employee' && profile?.id ? { assigneeId: profile.id, size: 50 } : { size: 50 };
+  const { data: taskPage, isLoading: loading, error, refetch: refresh } = useSearchTasksQuery(taskParams);
+  const taskItems = pageContent(taskPage).map(mapTask);
+  const [updateTask] = useUpdateTaskMutation();
+  const [addTaskComment] = useAddTaskCommentMutation();
 
   const grouped = useMemo(() => ({
     pending: taskItems.filter((task) => ['Pending', 'Backlog', 'Todo'].includes(task.status)),
@@ -64,7 +61,7 @@ export default function Tasks() {
   async function updateTaskStatus(task, status) {
     setTaskStatus(`Updating ${task.title}...`);
     try {
-      await tasksApi.update(task.id, { status });
+      await updateTask({ id: task.id, body: { status } }).unwrap();
       refresh();
       setTaskStatus('Task updated successfully.');
     } catch (err) {
@@ -101,7 +98,7 @@ export default function Tasks() {
     if (!commentDraft.trim()) return;
     setTaskStatus('Adding comment...');
     try {
-      await tasksApi.addComment(taskId, commentDraft.trim());
+      await addTaskComment({ taskId, content: commentDraft.trim() }).unwrap();
       setCommentDraft('');
       setDetailCache((current) => ({ ...current, [taskId]: undefined }));
       await loadTaskDetails(taskId);
@@ -131,8 +128,8 @@ export default function Tasks() {
   async function approveCompletedTask(task) {
     setTaskStatus(`Reviewing ${task.title}...`);
     try {
-      await tasksApi.update(task.id, { status: 'DONE' });
-      await tasksApi.addComment(task.id, 'Work reviewed and approved.');
+      await updateTask({ id: task.id, body: { status: 'DONE' } }).unwrap();
+      await addTaskComment({ taskId: task.id, content: 'Work reviewed and approved.' }).unwrap();
       refresh();
       setTaskStatus('Completed work approved.');
     } catch (err) {
@@ -151,7 +148,7 @@ export default function Tasks() {
         <p className="page-kicker">Task Management</p>
         <h1 className="page-title">{activeRole.key === 'employee' ? 'My assigned work' : 'Assigned work'}</h1>
       </div>
-      {error && <p className="alert-warning" role="alert">{error}</p>}
+      {error && <p className="alert-warning" role="alert">{error.message || "Unable to load tasks."}</p>}
       {loading && <LoadingIndicator message="Loading tasks from backend..." />}
       {taskStatus && <p className="alert-info" role="status">{taskStatus}</p>}
 
@@ -328,3 +325,6 @@ export default function Tasks() {
     </div>
   );
 }
+
+
+

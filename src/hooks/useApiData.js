@@ -44,3 +44,4 @@ export default function useApiData(loader, fallback, dependencies = []) {
 
   return { data, loading, error, refresh };
 }
+

@@ -7,8 +7,8 @@ import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import SearchFilter from '../components/ui/SearchFilter';
 import { LoadingIndicator } from '../components/ui/Skeleton';
-import useApiData from '../hooks/useApiData';
-import { attendanceApi, pageContent } from '../lib/api';
+import { pageContent } from '../services/baseApi';
+import { useClockInMutation, useClockOutMutation, useGetAllAttendanceQuery, useGetMyAttendanceQuery, useGetTodayAttendanceQuery } from '../services/attendanceApi';
 import { formatTime, mapAttendance } from '../lib/mappers';
 
 export default function Attendance() {
@@ -16,20 +16,18 @@ export default function Attendance() {
   const [actionStatus, setActionStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const { data: today, loading: todayLoading, error: todayError, refresh: refreshToday } = useApiData(
-    () => attendanceApi.today(),
-    null,
-    [],
-  );
+  const { data: today, isLoading: todayLoading, error: todayError, refetch: refreshToday } = useGetTodayAttendanceQuery();
   const canViewAllAttendance = ['admin', 'hr'].includes(activeRole.key);
-  const { data: rows, loading, error, refresh: refreshHistory } = useApiData(
-    async () => {
-      const attendanceSource = canViewAllAttendance ? attendanceApi.all : attendanceApi.my;
-      return pageContent(await attendanceSource({ size: canViewAllAttendance ? 100 : 30 })).map(mapAttendance);
-    },
-    [],
-    [canViewAllAttendance],
-  );
+  const attendanceParams = { size: canViewAllAttendance ? 100 : 30 };
+  const allAttendance = useGetAllAttendanceQuery(attendanceParams, { skip: !canViewAllAttendance });
+  const myAttendance = useGetMyAttendanceQuery(attendanceParams, { skip: canViewAllAttendance });
+  const source = canViewAllAttendance ? allAttendance : myAttendance;
+  const rows = pageContent(source.data).map(mapAttendance);
+  const loading = source.isLoading || source.isFetching;
+  const error = source.error;
+  const refreshHistory = source.refetch;
+  const [clockIn] = useClockInMutation();
+  const [clockOut] = useClockOutMutation();
 
   const summary = [
     { label: 'Check In', value: formatTime(today?.clockIn), icon: LogIn },
@@ -64,7 +62,7 @@ export default function Attendance() {
   async function handleClockIn() {
     setActionStatus('Clocking in...');
     try {
-      await attendanceApi.clockIn({});
+      await clockIn({}).unwrap();
       refreshToday();
       refreshHistory();
       setActionStatus('Clocked in successfully.');
@@ -76,7 +74,7 @@ export default function Attendance() {
   async function handleClockOut() {
     setActionStatus('Clocking out...');
     try {
-      await attendanceApi.clockOut({});
+      await clockOut({}).unwrap();
       refreshToday();
       refreshHistory();
       setActionStatus('Clocked out successfully.');
@@ -102,7 +100,7 @@ export default function Attendance() {
       </div>
 
       {actionStatus && <p className="alert-info" role="status">{actionStatus}</p>}
-      {(todayError || error) && <p className="alert-warning" role="alert">{todayError || error}</p>}
+      {(todayError || error) && <p className="alert-warning" role="alert">{todayError?.message || error?.message || "Unable to load attendance."}</p>}
       {(todayLoading || loading) && <LoadingIndicator message="Loading attendance from backend..." />}
 
       <SearchFilter
@@ -209,3 +207,7 @@ export default function Attendance() {
     </div>
   );
 }
+
+
+
+

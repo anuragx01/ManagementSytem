@@ -7,6 +7,8 @@ import {
   DollarSign,
   FileBarChart,
   FileText,
+  ShieldCheck,
+  ScrollText,
   LayoutDashboard,
   NotebookTabs,
   Palmtree,
@@ -76,6 +78,9 @@ export const navigationByRole = {
     item('Tasks', routePaths.tasks, 'tasks', ClipboardList),
     item('Reports', routePaths.reports, 'reports', FileBarChart),
     item('Payroll', routePaths.payroll, 'payroll', DollarSign),
+    item('Notifications', routePaths.notifications, 'notifications', Bell),
+    item('Admin Console', routePaths.adminConsole, 'adminConsole', ShieldCheck),
+    item('Audit Logs', routePaths.auditLogs, 'auditLogs', ScrollText),
     item('My Profile', routePaths.profile, 'profile', User),
   ],
   manager: [
@@ -104,3 +109,5 @@ export const navigationByRole = {
 export function getNavigationForRole(roleKey) {
   return navigationByRole[roleKey] || navigationByRole.employee;
 }
+
+

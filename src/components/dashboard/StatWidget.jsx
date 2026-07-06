@@ -18,3 +18,4 @@ export default function StatWidget({ label, value, icon: Icon, accent = 'bg-bran
     </Card>
   );
 }
+

@@ -69,3 +69,4 @@ export default function ProjectPortfolioSection({ companyId }) {
     </section>
   );
 }
+

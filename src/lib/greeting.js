@@ -10,3 +10,4 @@ export function buildWelcomeTitle(roleLabel = 'User') {
   const { emoji, label } = getTimeGreeting();
   return `${emoji} ${label}, ${roleLabel}`;
 }
+

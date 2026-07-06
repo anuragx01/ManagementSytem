@@ -5,8 +5,11 @@ import PageHeader from '../components/ui/PageHeader';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import ProgressBar from '../components/ui/ProgressBar';
-import useApiData from '../hooks/useApiData';
-import { employeesApi, organizationApi, pageContent, projectsApi, reportsApi, tasksApi } from '../lib/api';
+import { pageContent } from '../services/baseApi';
+import { useGetEmployeesQuery } from '../services/employeeApi';
+import { useGetCompanyQuery, useGetDepartmentsQuery } from '../services/organizationApi';
+import { useGetProjectsQuery } from '../services/projectApi';
+import { useSearchTasksQuery } from '../services/taskApi';
 import { mapEmployee, mapTask } from '../lib/mappers';
 
 function taskStatus(task) {
@@ -19,27 +22,14 @@ function taskAssigneeId(task) {
 
 export default function Departments() {
   const { departmentId } = useParams();
-  const { data: company } = useApiData(() => organizationApi.company(), null, []);
-  const { data: departments, loading, error } = useApiData(
-    async () => (company?.id ? organizationApi.departments({ companyId: company.id }) : []),
-    [],
-    [company?.id],
-  );
-  const { data: employees } = useApiData(
-    async () => pageContent(await employeesApi.list({ size: 500 })).map(mapEmployee),
-    [],
-    [],
-  );
-  const { data: projects } = useApiData(
-    async () => (company?.id ? pageContent(await projectsApi.list({ companyId: company.id, size: 100 })) : []),
-    [],
-    [company?.id],
-  );
-  const { data: tasks } = useApiData(
-    async () => pageContent(await tasksApi.search({ size: 500 })).map(mapTask),
-    [],
-    [],
-  );
+  const { data: company } = useGetCompanyQuery();
+  const { data: departments = [], isLoading: loading, error } = useGetDepartmentsQuery({ companyId: company?.id }, { skip: !company?.id });
+  const { data: employeePage } = useGetEmployeesQuery({ size: 500 });
+  const { data: projectPage } = useGetProjectsQuery({ companyId: company?.id, size: 100 }, { skip: !company?.id });
+  const { data: taskPage } = useSearchTasksQuery({ size: 500 });
+  const employees = pageContent(employeePage).map(mapEmployee);
+  const projects = pageContent(projectPage);
+  const tasks = pageContent(taskPage).map(mapTask);
 
   const selectedDepartment = departments.find((department) => department.id === departmentId);
   const departmentRows = useMemo(() => departments.map((department) => {
@@ -62,7 +52,7 @@ export default function Departments() {
           actions={<Link to="/departments" className="text-sm font-bold text-brand-primary hover:underline"><ArrowLeft className="mr-2 inline h-4 w-4" />Back to Departments</Link>}
         />
         {loading && <p className="loading-text">Loading department...</p>}
-        {error && <p className="alert-warning" role="alert">{error}</p>}
+        {error && <p className="alert-warning" role="alert">{error.message || "Unable to load departments."}</p>}
         <section className="card-grid sm:grid-cols-2 xl:grid-cols-4">
           <Card className="p-5" interactive={false}><p className="text-sm text-ink-secondary">Total Employees</p><p className="mt-2 text-3xl font-extrabold">{detailMembers.length}</p></Card>
           <Card className="p-5" interactive={false}><p className="text-sm text-ink-secondary">Active Projects</p><p className="mt-2 text-3xl font-extrabold">{detailProjects.length}</p></Card>
@@ -108,7 +98,7 @@ export default function Departments() {
     <div className="page-stack">
       <PageHeader kicker="Organization" title="Departments" description="Department structure, headcount, projects, and ownership." />
       {loading && <p className="loading-text">Loading departments...</p>}
-      {error && <p className="alert-warning" role="alert">{error}</p>}
+      {error && <p className="alert-warning" role="alert">{error.message || "Unable to load departments."}</p>}
       <section className="card-grid md:grid-cols-2 xl:grid-cols-3">
         {departmentRows.length === 0 && <Card className="p-5 md:col-span-2 xl:col-span-3" interactive={false}><p className="text-sm text-ink-secondary">No departments available.</p></Card>}
         {departmentRows.map((department) => (
@@ -133,3 +123,6 @@ export default function Departments() {
     </div>
   );
 }
+
+
+

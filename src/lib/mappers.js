@@ -69,3 +69,4 @@ function titleCase(value) {
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
+

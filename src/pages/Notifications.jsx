@@ -3,8 +3,8 @@ import { AlarmClock, Bell, ClipboardPlus, Megaphone } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { LoadingIndicator } from '../components/ui/Skeleton';
-import useApiData from '../hooks/useApiData';
-import { notificationsApi, pageContent } from '../lib/api';
+import { pageContent } from '../services/baseApi';
+import { useGetNotificationsQuery, useMarkAllNotificationsReadMutation, useMarkNotificationReadMutation } from '../services/notificationApi';
 import { mapNotification } from '../lib/mappers';
 
 const meta = {
@@ -17,17 +17,16 @@ const meta = {
 
 export default function Notifications() {
   const [actionStatus, setActionStatus] = useState('');
-  const { data: notificationItems, loading, error, refresh } = useApiData(
-    async () => pageContent(await notificationsApi.list({ size: 30 })).map(mapNotification),
-    [],
-    [],
-  );
+  const { data, isLoading, isFetching, error, refetch } = useGetNotificationsQuery({ size: 30 });
+  const [readAll] = useMarkAllNotificationsReadMutation();
+  const [readOne] = useMarkNotificationReadMutation();
+  const notificationItems = pageContent(data).map(mapNotification);
 
   async function markAllRead() {
     setActionStatus('Marking all as read...');
     try {
-      await notificationsApi.readAll();
-      refresh();
+      await readAll().unwrap();
+      refetch();
       setActionStatus('All notifications marked as read.');
     } catch (err) {
       setActionStatus(err.message);
@@ -36,8 +35,8 @@ export default function Notifications() {
 
   async function markRead(id) {
     try {
-      await notificationsApi.markRead(id);
-      refresh();
+      await readOne(id).unwrap();
+      refetch();
     } catch (err) {
       setActionStatus(err.message);
     }
@@ -52,11 +51,11 @@ export default function Notifications() {
         </div>
         <Button variant="secondary" onClick={markAllRead}>Mark all read</Button>
       </div>
-      {error && <p className="alert-warning" role="alert">{error}</p>}
+      {error && <p className="alert-warning" role="alert">{error.message || "Unable to load notifications."}</p>}
       {actionStatus && <p className="alert-info" role="status">{actionStatus}</p>}
-      {loading && <LoadingIndicator message="Loading notifications from backend..." />}
+      {(isLoading || isFetching) && <LoadingIndicator message="Loading notifications from backend..." />}
       <section className="space-y-4">
-        {notificationItems.length === 0 && !loading && (
+        {notificationItems.length === 0 && !isLoading && (
           <Card className="p-5" interactive={false}>
             <p className="text-sm text-ink-secondary">No notifications yet.</p>
           </Card>
@@ -96,3 +95,6 @@ export default function Notifications() {
     </div>
   );
 }
+
+
+

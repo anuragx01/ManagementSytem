@@ -3,8 +3,9 @@ import { Camera, KeyRound, Mail, MapPin, Pencil, Phone, ShieldCheck } from 'luci
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Modal, { ModalActions } from '../components/ui/Modal';
-import useApiData from '../hooks/useApiData';
-import { authApi, documentsApi, employeesApi } from '../lib/api';
+import { useChangePasswordMutation } from '../services/authApi';
+import { useGetMeQuery, useUpdateEmployeeMutation } from '../services/employeeApi';
+import { useUploadProfilePictureMutation } from '../services/documentApi';
 import { mapEmployee } from '../lib/mappers';
 
 const defaultProfile = {
@@ -33,14 +34,15 @@ export default function Profile() {
     address: '',
     city: '',
   });
-  const { data: apiEmployee, error, refresh } = useApiData(
-    async () => mapEmployee(await employeesApi.me()),
-    null,
-    [],
-  );
+  const { data: rawEmployee, error, refetch } = useGetMeQuery();
+  const apiEmployee = rawEmployee ? mapEmployee(rawEmployee) : null;
+  const [updateEmployee] = useUpdateEmployeeMutation();
+  const [uploadPicture] = useUploadProfilePictureMutation();
+  const [changePasswordRequest] = useChangePasswordMutation();
   const profile = apiEmployee
     ? {
         ...defaultProfile,
+        id: apiEmployee.id || apiEmployee.raw?.id,
         name: apiEmployee.name,
         role: apiEmployee.raw?.designationName || apiEmployee.role,
         department: apiEmployee.department,
@@ -51,6 +53,8 @@ export default function Profile() {
         location: [apiEmployee.raw?.city, apiEmployee.raw?.state].filter(Boolean).join(', ') || defaultProfile.location,
         manager: apiEmployee.raw?.reportingManagerName || defaultProfile.manager,
         joined: apiEmployee.raw?.dateOfJoining || defaultProfile.joined,
+        employmentType: apiEmployee.raw?.employmentType || '',
+        workLocation: apiEmployee.raw?.workLocation || '',
         raw: apiEmployee.raw,
       }
     : { ...defaultProfile, avatar: previewAvatar || defaultProfile.avatar };
@@ -69,6 +73,8 @@ export default function Profile() {
     ['Department', displayProfile.department],
     ['Designation', displayProfile.role],
     ['Joining Date', displayProfile.joined],
+    ['Employment Type', displayProfile.employmentType || '-'],
+    ['Work Location', displayProfile.workLocation || '-'],
     ['Reporting Manager', displayProfile.manager],
   ];
 
@@ -77,18 +83,18 @@ export default function Profile() {
     if (!apiEmployee?.raw?.id && !apiEmployee?.id) return;
     setProfileStatus('Updating profile...');
     try {
-     await employeesApi.updateMe(profile.id, {
+     await updateEmployee({ id: profile.id, body: {
         ...apiEmployee.raw,
         phoneNumber: draftProfile.phone,
         personalEmail: draftProfile.personalEmail,
         address: draftProfile.address,
         city: draftProfile.city,
-      });
-      refresh();
+      } }).unwrap();
+      refetch();
       setProfileStatus('Profile updated successfully.');
       setEditing(false);
     } catch (err) {
-      setProfileStatus(err.message);
+      setProfileStatus(err.message || 'Request failed.');
     }
   }
 
@@ -99,12 +105,12 @@ export default function Profile() {
     setPreviewAvatar(URL.createObjectURL(file));
     setProfileStatus('Uploading profile picture...');
     try {
-      await documentsApi.uploadProfilePicture(file);
-      refresh();
+      await uploadPicture(file).unwrap();
+      refetch();
       setProfileStatus('Profile picture updated.');
     } catch (err) {
       setPreviewAvatar('');
-      setProfileStatus(err.message);
+      setProfileStatus(err.message || 'Request failed.');
     }
   }
 
@@ -123,15 +129,15 @@ export default function Profile() {
     }
     setProfileStatus('Updating password...');
     try {
-      await authApi.changePassword({
+      await changePasswordRequest({
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
-      });
+      }).unwrap();
       setProfileStatus('Password changed successfully.');
       setPasswordOpen(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      setProfileStatus(err.message);
+      setProfileStatus(err.message || 'Request failed.');
     }
   }
 
@@ -141,7 +147,7 @@ export default function Profile() {
         <p className="page-kicker">My Profile</p>
         <h1 className="page-title">Profile details</h1>
       </div>
-      {error && <p className="alert-warning" role="alert">{error}</p>}
+      {error && <p className="alert-warning" role="alert">{error.message || 'Unable to load profile.'}</p>}
       {profileStatus && <p className="alert-success" role="status">{profileStatus}</p>}
       <Card className="overflow-hidden">
         <div className="h-32 bg-gradient-to-r from-brand-primary via-info to-brand-secondary" />
@@ -242,3 +248,7 @@ export default function Profile() {
     </div>
   );
 }
+
+
+
+

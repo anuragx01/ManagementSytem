@@ -61,3 +61,4 @@ export function ModalActions({ onCancel, onConfirm, cancelLabel = 'Cancel', conf
     </>
   );
 }
+

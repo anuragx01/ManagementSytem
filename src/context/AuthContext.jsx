@@ -1,38 +1,36 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import { authApi, clearAuth, getStoredAuth, storeAuth } from '../lib/api';
+import React, { createContext, useContext, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useLogoutMutation } from '../services/authApi';
+import { loggedOut, selectAccessToken, selectAuthUser, selectIsAuthenticated, selectRefreshToken } from '../features/auth/authSlice';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const stored = getStoredAuth();
-  const [authUser, setAuthUser] = useState(stored.user);
-  const [accessToken, setAccessToken] = useState(stored.accessToken);
+  const dispatch = useDispatch();
+  const authUser = useSelector(selectAuthUser);
+  const accessToken = useSelector(selectAccessToken);
+  const refreshToken = useSelector(selectRefreshToken);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const [logoutRequest] = useLogoutMutation();
 
   const value = useMemo(
     () => ({
       authUser,
       accessToken,
-      isAuthenticated: Boolean(accessToken),
-      login: async (credentials) => {
-        const data = await authApi.login(credentials);
-        storeAuth(data);
-        setAuthUser(data);
-        setAccessToken(data.accessToken);
-        return data;
+      isAuthenticated,
+      login: async () => {
+        throw new Error('Login is handled by RTK Query. Use useLoginMutation.');
       },
       logout: async () => {
-        const refreshToken = getStoredAuth().refreshToken;
         try {
-          if (accessToken) await authApi.logout(refreshToken);
+          if (accessToken) await logoutRequest(refreshToken).unwrap();
+          else dispatch(loggedOut());
         } catch {
-          // Local logout should still complete if the backend is unavailable.
+          dispatch(loggedOut());
         }
-        clearAuth();
-        setAuthUser(null);
-        setAccessToken(null);
       },
     }),
-    [authUser, accessToken],
+    [authUser, accessToken, isAuthenticated, refreshToken, logoutRequest, dispatch],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -45,3 +43,4 @@ export function useAuth() {
   }
   return context;
 }
+

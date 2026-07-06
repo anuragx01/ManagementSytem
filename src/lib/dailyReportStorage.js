@@ -35,3 +35,4 @@ export function listDailyReportHistory(userId) {
     .filter(Boolean)
     .sort((a, b) => b.date.localeCompare(a.date));
 }
+

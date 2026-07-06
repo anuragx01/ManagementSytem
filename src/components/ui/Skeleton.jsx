@@ -32,3 +32,4 @@ export function LoadingIndicator({ message = 'Loading...' }) {
     </p>
   );
 }
+

@@ -352,3 +352,4 @@ export const adminApi = {
   userAuditLogs: (userId, params) => apiRequest(`/admin/audit-logs/user/${userId}${toQuery(params)}`),
   systemSummary: () => apiRequest('/admin/system/summary'),
 };
+

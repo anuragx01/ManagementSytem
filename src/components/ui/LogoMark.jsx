@@ -24,3 +24,4 @@ export default function LogoMark({ size = 'md' }) {
     </div>
   );
 }
+

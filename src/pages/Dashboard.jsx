@@ -19,3 +19,4 @@ export default function Dashboard() {
   const View = dashboards[activeRole.key] || EmployeeDashboard;
   return <View />;
 }
+

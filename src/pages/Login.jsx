@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { ArrowRight, Check, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import LogoMark from "../components/ui/LogoMark";
-import { useAuth } from "../context/AuthContext";
-import { useRole } from "../context/RoleContext";
-import { roleOptions } from "../data/roles";
+import { useLoginMutation } from "../services/authApi";
+
 
 const slides = [
   "/login-slides/0202img.png",
@@ -15,16 +14,13 @@ const slides = [
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const { activeRole, previewRoleKey, setActiveRoleKey } = useRole();
-
+  const [login, { isLoading }] = useLoginMutation();
   const [form, setForm] = useState({
     email: "",
     password: "",
   });
 
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -49,21 +45,22 @@ export default function Login() {
       return;
     }
 
-    setLoading(true);
     setError("");
     setSuccess(false);
 
     try {
-      await login(form);
+      await login({ email: form.email, password: form.password }).unwrap();
       setSuccess(true);
       window.setTimeout(() => navigate("/dashboard"), 320);
     } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error("[auth/login] RTK Query error", err);
+      }
+
       setError(
         err.message ||
           "Login failed. Please check backend and credentials."
       );
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -155,35 +152,6 @@ export default function Login() {
             onSubmit={handleSubmit}
             noValidate
           >
-            <label className="block">
-              <span className="text-sm font-semibold text-white">
-                Preview Role
-              </span>
-
-              <select
-                className="select-control-dark mt-2"
-                value={previewRoleKey}
-                onChange={(event) =>
-                  setActiveRoleKey(event.target.value)
-                }
-                aria-label="Preview role"
-              >
-                {roleOptions.map((role) => (
-                  <option
-                    key={role.key}
-                    value={role.key}
-                    className="bg-[#27384F] text-white"
-                  >
-                    {role.label}
-                  </option>
-                ))}
-              </select>
-
-              <span className="mt-2 block text-xs font-medium text-white/60">
-                {activeRole.title}
-              </span>
-            </label>
-
             <label className="block">
               <span className="text-sm font-semibold text-white">
                 Email
@@ -289,23 +257,15 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading || Boolean(success)}
+              disabled={isLoading || Boolean(success)}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#E1141C] px-4 py-3 text-sm font-extrabold text-white shadow-[0_18px_44px_rgba(225,20,28,0.36)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lift active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#E1141C]/25"
-              aria-busy={loading}
+              aria-busy={isLoading}
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {success && <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
-              {loading ? "Signing in..." : success ? "Success" : "Sign In"}
+              {isLoading ? "Signing in..." : success ? "Success" : "Sign In"}
 
-              {!loading && !success && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard")}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-white/20 bg-white/[0.12] px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/20 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#E1141C]/25"
-            >
-              Continue with Mock Preview
+              {!isLoading && !success && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
             </button>
           </form>
         </section>
@@ -313,3 +273,6 @@ export default function Login() {
     </main>
   );
 }
+
+
+

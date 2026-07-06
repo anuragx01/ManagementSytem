@@ -5,8 +5,9 @@ import PageTabs from '../components/ui/PageTabs';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { LoadingIndicator } from '../components/ui/Skeleton';
-import useApiData from '../hooks/useApiData';
-import { leaveApi, organizationApi, pageContent } from '../lib/api';
+import { pageContent } from '../services/baseApi';
+import { useGetCompanyQuery } from '../services/organizationApi';
+import { useApplyLeaveMutation, useApproveHrLeaveMutation, useApproveManagerLeaveMutation, useGetLeaveTypesQuery, useGetMyLeaveBalanceQuery, useGetMyLeavesQuery, useGetPendingHrLeavesQuery, useGetPendingManagerLeavesQuery } from '../services/leaveApi';
 
 const employeeTabs = [
   { id: 'my-leave', label: 'My Leave' },
@@ -46,39 +47,26 @@ export default function Leave() {
     dayType: 'FULL',
     reason: '',
   });
-  const { data: company } = useApiData(() => organizationApi.company(), null, []);
-  const { data: myLeaves, loading: myLoading, error: myError, refresh: refreshMyLeaves } = useApiData(
-    () => leaveApi.my({ page: 0, size: 20 }),
-    { content: [] },
-    [],
-  );
-  const { data: pendingHr, loading: hrLoading } = useApiData(
-    () => (activeRole.key === 'hr' || activeRole.key === 'admin') ? leaveApi.pendingHr() : Promise.resolve([]),
-    [],
-    [activeRole.key],
-  );
-  const { data: pendingManager, loading: managerLoading } = useApiData(
-    () => activeRole.key === 'manager' ? leaveApi.pendingManager() : Promise.resolve([]),
-    [],
-    [activeRole.key],
-  );
-  const { data: balances } = useApiData(() => leaveApi.myBalance(), [], []);
-  const { data: leaveTypes } = useApiData(
-    async () => (company?.id ? leaveApi.types(company.id) : []),
-    [],
-    [company?.id],
-  );
+  const { data: company } = useGetCompanyQuery();
+  const { data: myLeaves, isLoading: myLoading, error: myError, refetch: refreshMyLeaves } = useGetMyLeavesQuery({ page: 0, size: 20 });
+  const { data: pendingHr = [], isLoading: hrLoading } = useGetPendingHrLeavesQuery(undefined, { skip: !(activeRole.key === 'hr' || activeRole.key === 'admin') });
+  const { data: pendingManager = [], isLoading: managerLoading } = useGetPendingManagerLeavesQuery(undefined, { skip: activeRole.key !== 'manager' });
+  const { data: balances = [] } = useGetMyLeaveBalanceQuery();
+  const { data: leaveTypes = [] } = useGetLeaveTypesQuery(company?.id, { skip: !company?.id });
+  const [applyLeave] = useApplyLeaveMutation();
+  const [approveHrLeave] = useApproveHrLeaveMutation();
+  const [approveManagerLeave] = useApproveManagerLeaveMutation();
 
   async function submitLeaveApplication(event) {
     event.preventDefault();
     setApplyStatus('Submitting leave request...');
     try {
-      await leaveApi.apply(applyForm);
+      await applyLeave(applyForm).unwrap();
       setApplyStatus('Leave request submitted successfully.');
       refreshMyLeaves();
       setApplyForm({ leaveTypeId: '', startDate: '', endDate: '', dayType: 'FULL', reason: '' });
     } catch (err) {
-      setApplyStatus(err.message);
+      setApplyStatus(err.message || 'Request failed.');
     }
   }
 
@@ -107,7 +95,7 @@ export default function Leave() {
 
         <div className="space-y-6 p-5">
           {(myLoading || hrLoading || managerLoading) && <LoadingIndicator message="Loading leave data..." />}
-          {myError && <p className="alert-warning" role="alert">{myError}</p>}
+          {myError && <p className="alert-warning" role="alert">{myError.message || "Unable to load leave data."}</p>}
 
           {activeTab === 'my-leave' && (
             <>
@@ -182,19 +170,27 @@ export default function Leave() {
                       {(activeTab === 'approval' || activeTab === 'team-leave') && (
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => (activeTab === 'team-leave' ? leaveApi.approveManager : leaveApi.approveHr)({
-                              leaveRequestId: leave.id,
-                              decision: 'APPROVED',
-                            })}
+                            onClick={async () => {
+                              try {
+                                await (activeTab === 'team-leave' ? approveManagerLeave : approveHrLeave)({ leaveRequestId: leave.id, decision: 'APPROVED' }).unwrap();
+                                setApplyStatus('Leave request approved.');
+                              } catch (err) {
+                                setApplyStatus(err.message || 'Approval failed.');
+                              }
+                            }}
                           >
                             Approve
                           </Button>
                           <Button
                             variant="secondary"
-                            onClick={() => (activeTab === 'team-leave' ? leaveApi.approveManager : leaveApi.approveHr)({
-                              leaveRequestId: leave.id,
-                              decision: 'REJECTED',
-                            })}
+                            onClick={async () => {
+                              try {
+                                await (activeTab === 'team-leave' ? approveManagerLeave : approveHrLeave)({ leaveRequestId: leave.id, decision: 'REJECTED' }).unwrap();
+                                setApplyStatus('Leave request rejected.');
+                              } catch (err) {
+                                setApplyStatus(err.message || 'Rejection failed.');
+                              }
+                            }}
                           >
                             Reject
                           </Button>
@@ -211,3 +207,9 @@ export default function Leave() {
     </div>
   );
 }
+
+
+
+
+
+

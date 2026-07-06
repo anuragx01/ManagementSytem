@@ -19,3 +19,4 @@ const styles = {
 export default function Badge({ children }) {
   return <span className={`chip ${styles[children] || 'bg-brand-infoSoft text-info'}`}>{children}</span>;
 }
+

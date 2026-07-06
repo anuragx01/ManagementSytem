@@ -8,7 +8,7 @@ export const roles = {
     title: 'Organization administration',
     routes: [
       'dashboard', 'employees', 'departments', 'attendance', 'leave',
-      'projects', 'tasks', 'reports', 'payroll', 'settings', 'profile',
+      'projects', 'tasks', 'reports', 'payroll', 'notifications', 'adminConsole', 'auditLogs', 'settings', 'profile',
     ],
   },
   hr: {
@@ -52,7 +52,6 @@ export const roles = {
   },
 };
 
-export const roleOptions = Object.values(roles);
 
 export function canAccess(roleKey, routeKey) {
   return roles[roleKey]?.routes.includes(routeKey) ?? false;
@@ -73,3 +72,6 @@ export function getRoleNavigation(roleKey) {
 export function hasBackendRole(activeRole, backendRole) {
   return activeRole.backendRoles.includes(backendRole);
 }
+
+
+
