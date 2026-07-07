@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+import { getApiBaseUrl } from './apiBaseUrl';
+
+const API_BASE_URL = getApiBaseUrl();
 
 const TOKEN_KEY = 'nexstar-access-token';
 const REFRESH_TOKEN_KEY = 'nexstar-refresh-token';

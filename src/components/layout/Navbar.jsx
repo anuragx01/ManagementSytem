@@ -49,8 +49,13 @@ export default function Navbar() {
         </div>
 
         <div className="flex min-w-0 items-center justify-end gap-2">
-          <Link to="/notifications" className="icon-button relative" aria-label="Notifications">
-            <Bell className="h-5 w-5 text-ink-secondary" />
+          <Link
+            to="/notifications"
+            className="icon-button relative"
+            aria-label="Notifications"
+            title="Notifications"
+          >
+            <Bell className="h-5 w-5 text-ink-secondary" aria-hidden="true" />
             {badgeCount > 0 && (
               <span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-brand-accent px-1 text-[10px] font-bold text-white ring-2 ring-white">
                 {badgeCount > 99 ? '99+' : badgeCount}

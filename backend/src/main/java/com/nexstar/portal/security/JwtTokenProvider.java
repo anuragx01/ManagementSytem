@@ -2,13 +2,13 @@ package com.nexstar.portal.security;
 
 import com.nexstar.portal.config.AppProperties;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
@@ -20,9 +20,7 @@ public class JwtTokenProvider {
     private final AppProperties appProperties;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.encode(
-                appProperties.getJwt().getSecret().getBytes()).getBytes();
-        return Keys.hmacShaKeyFor(appProperties.getJwt().getSecret().getBytes());
+        return Keys.hmacShaKeyFor(appProperties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateAccessToken(UserPrincipal userPrincipal) {

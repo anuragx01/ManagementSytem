@@ -1,7 +1,8 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { credentialsReceived, loggedOut } from '../features/auth/authSlice';
+import { getApiBaseUrl } from '../lib/apiBaseUrl';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = getApiBaseUrl();
 const REFRESH_TOKEN_KEY = 'nexstar-refresh-token';
 const SERVER_UNAVAILABLE_MESSAGE = 'Unable to connect to the server. Please make sure the backend is running.';
 
@@ -131,4 +132,3 @@ export function pageContent(data, fallback = []) {
 export function toQueryParams(params = {}) {
   return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''));
 }
-

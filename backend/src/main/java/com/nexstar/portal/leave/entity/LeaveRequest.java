@@ -5,13 +5,14 @@ import com.nexstar.portal.employee.entity.Employee;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "leave_requests", indexes = {
         @Index(name = "idx_leave_employee", columnList = "employee_id"),
-        @Index(name = "idx_leave_status",   columnList = "status"),
-        @Index(name = "idx_leave_dates",    columnList = "start_date, end_date")
+        @Index(name = "idx_leave_status", columnList = "status"),
+        @Index(name = "idx_leave_dates", columnList = "start_date, end_date")
 })
 @Getter
 @Setter
@@ -35,7 +36,7 @@ public class LeaveRequest extends BaseEntity {
     private LocalDate endDate;
 
     @Column(name = "total_days", nullable = false)
-    private double totalDays;
+    private BigDecimal totalDays;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "day_type", length = 10)
@@ -95,12 +96,12 @@ public class LeaveRequest extends BaseEntity {
     private String cancellationReason;
 
     public enum LeaveStatus {
-        PENDING,            // Awaiting manager approval
-        MANAGER_APPROVED,   // Manager approved, awaiting HR
-        APPROVED,           // Fully approved
-        REJECTED,           // Rejected at any step
-        CANCELLED,          // Cancelled by employee
-        AUTO_APPROVED       // Auto-approved (e.g. WFH)
+        PENDING,
+        MANAGER_APPROVED,
+        APPROVED,
+        REJECTED,
+        CANCELLED,
+        AUTO_APPROVED
     }
 
     public enum DayType {

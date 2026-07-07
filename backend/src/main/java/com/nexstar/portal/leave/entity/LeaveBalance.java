@@ -5,10 +5,15 @@ import com.nexstar.portal.employee.entity.Employee;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
-@Table(name = "leave_balances",
+@Table(
+        name = "leave_balances",
         uniqueConstraints = @UniqueConstraint(
-                columnNames = {"employee_id", "leave_type_id", "year"}))
+                columnNames = {"employee_id", "leave_type_id", "year"}
+        )
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,21 +34,24 @@ public class LeaveBalance extends BaseEntity {
 
     @Column(name = "allocated_days", nullable = false)
     @Builder.Default
-    private double allocatedDays = 0;
+    private BigDecimal allocatedDays = BigDecimal.ZERO;
 
     @Column(name = "carried_forward_days", nullable = false)
     @Builder.Default
-    private double carriedForwardDays = 0;
+    private BigDecimal carriedForwardDays = BigDecimal.ZERO;
 
     @Column(name = "used_days", nullable = false)
     @Builder.Default
-    private double usedDays = 0;
+    private BigDecimal usedDays = BigDecimal.ZERO;
 
     @Column(name = "pending_days", nullable = false)
     @Builder.Default
-    private double pendingDays = 0;   // In approval
+    private BigDecimal pendingDays = BigDecimal.ZERO;
 
-    public double getAvailableDays() {
-        return allocatedDays + carriedForwardDays - usedDays - pendingDays;
+    public BigDecimal getAvailableDays() {
+        return allocatedDays
+                .add(carriedForwardDays)
+                .subtract(usedDays)
+                .subtract(pendingDays);
     }
 }
